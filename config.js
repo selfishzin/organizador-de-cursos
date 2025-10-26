@@ -36,7 +36,14 @@ const CONFIG_APRENDIZADO = {
         { limite: 13, frase: "Dia puxado. (🔥🔥🔥)" }, { limite: 99, frase: "Maratona! Divida. (🔥🔥🔥🔥🔥)" }
     ],
     LIMITE_DIAS_CONCLUIDOS: 2,
-    MENSAGEM_AVISO: "Uau, {count}º dia hoje! 🔥 Pausa sugerida pela neurociência. Que tal voltar amanhã?"
+    MENSAGEM_AVISO: "Uau, {count}º dia hoje! 🔥 Pausa sugerida pela neurociência. Que tal voltar amanhã?",
+
+    // --- NOVA FUNCIONALIDADE (REVISÃO ESPAÇADA) ---
+    // Define os intervalos em dias para a revisão.
+    // Nível 1: 1 dia depois
+    // Nível 2: 3 dias depois
+    // Nível 3: 7 dias depois ... etc.
+    INTERVALOS_REVISAO: [1, 3, 7, 16, 30] 
 };
 
 // LOG NO FINAL

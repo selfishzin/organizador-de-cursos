@@ -1,5 +1,5 @@
 // ===================================
-// ARQUIVO main.js (Corrigido e Completo)
+// ARQUIVO main.js (com Pomodoro, Stats e Desafio da Memória)
 // ===================================
 
 // --- Variáveis Globais ---
@@ -7,6 +7,13 @@ let db = null;
 let firebaseInicializado = false;
 let currentPlaylistId = null;
 let videoProgress = {};
+// --- IDEIA 3 ---
+let allVideosCompletos = []; // Agora é global para stats
+// --- IDEIA 2 ---
+let pomodoroTimer = null; // (em segundos)
+let pomodoroInterval = null;
+let isPomodoroRunning = false;
+let isPausa = false;
 
 // --- Referências ao DOM (declaradas aqui, atribuídas no DOMContentLoaded) ---
 let themeToggle = null;
@@ -15,6 +22,16 @@ let carregarBtn = null;
 let esforcoPorDiaInput = null;
 let videosContainer = null;
 let resetProgressBtn = null;
+let reviewQueueContainer = null;
+let reviewQueueItems = null;
+// --- IDEIA 2 (Pomodoro) ---
+let pomodoroDisplay = null;
+let pomodoroStartBtn = null;
+let pomodoroResetBtn = null;
+// --- IDEIA 3 (Stats) ---
+let statPercentual = null;
+let statConcluidos = null;
+let statEsforco = null;
 
 
 // --- TENTA INICIALIZAR FIREBASE IMEDIATAMENTE ---
@@ -57,32 +74,45 @@ async function loadProgress(playlistId) {
     } catch (error) { console.error("Erro loadProgress:", error); showToast("Erro carregar progresso.", "warning"); } 
 }
 
+// --- saveProgress atualizado (Ideia 1) ---
 async function saveProgress(playlistId, videoId, isChecked, anotacao = null) { 
     if (!playlistId || !videoId || !firebaseInicializado) { console.warn("Pulando saveProgress."); return; } 
     const docRef = db.collection('progress').doc(playlistId); 
     let updateData = {}; 
+    
     if (isChecked) { 
-        // Salva a anotação ou 'true' se a anotação for nula (fallback)
-        updateData[videoId] = anotacao || true; 
+        const progressoAtual = videoProgress[videoId];
+        let dataParaSalvar;
+
+        if (typeof progressoAtual === 'object' && progressoAtual.statusRevisao) {
+            dataParaSalvar = { ...progressoAtual, anotacao: anotacao };
+        } else {
+            dataParaSalvar = {
+                anotacao: anotacao,
+                statusRevisao: 1, 
+                dataConclusao: new Date().toISOString()
+            };
+        }
+        updateData[videoId] = dataParaSalvar;
+        videoProgress[videoId] = dataParaSalvar;
+        
     } else { 
-        // Remove o campo do documento se desmarcado
         updateData[videoId] = firebase.firestore.FieldValue.delete(); 
+        delete videoProgress[videoId];
     } 
+    
     try { 
         await docRef.set(updateData, { merge: true }); 
-        if (isChecked) { 
-            videoProgress[videoId] = anotacao || true; 
-        } else { 
-            delete videoProgress[videoId]; 
-        } 
-        console.log(`Progresso salvo: ${videoId} (${isChecked})`); 
+        console.log(`Progresso salvo: ${videoId} (${isChecked})`, updateData[videoId]); 
     } catch (error) { 
         console.error("Erro saveProgress:", error); 
         showToast("Erro salvar progresso.", "warning"); 
-        // Desfaz a ação na UI se o salvamento falhar
         const checkbox = document.querySelector(`input[data-video-id="${videoId}"]`); 
         if(checkbox) checkbox.checked = !isChecked; 
     } 
+    
+    // --- IDEIA 3 (Atualiza stats após salvar) ---
+    atualizarPainelDeProgresso();
 }
 
 // --- Função checkDayCompletion ---
@@ -125,7 +155,6 @@ function showToast(message, type = 'info') {
 function openDay(diaConteudo) { 
     try{ 
         if (!diaConteudo) return; 
-        // Lazy load dos players
         if (!diaConteudo.dataset.loaded) { 
             const placeholders = diaConteudo.querySelectorAll('.video-placeholder'); 
             placeholders.forEach(placeholder => { 
@@ -143,13 +172,12 @@ function openDay(diaConteudo) {
             }); 
             diaConteudo.dataset.loaded = 'true'; 
         } 
-        // Animação de abertura
         const currentTransition = diaConteudo.style.transition; 
         diaConteudo.style.transition = ''; 
         diaConteudo.style.maxHeight = 'none'; 
         const scrollHeight = diaConteudo.scrollHeight; 
         diaConteudo.style.maxHeight = '0px'; 
-        diaConteudo.offsetHeight; // Força reflow
+        diaConteudo.offsetHeight; 
         diaConteudo.style.transition = currentTransition; 
         diaConteudo.style.paddingTop = '20px'; 
         diaConteudo.style.paddingBottom = '20px'; 
@@ -164,7 +192,7 @@ function closeDay(diaConteudo) {
         diaConteudo.style.paddingBottom = '0'; 
         setTimeout(() => { 
             if (diaConteudo) diaConteudo.style.maxHeight = "0px"; 
-        }, 50); // Delay pequeno para a transição de padding funcionar
+        }, 50); 
     } catch(e){ console.error("Erro closeDay:",e);}
 }
 
@@ -208,7 +236,7 @@ function autoOpenAndHighlightNextDay() {
                 openDay(diaConteudo); 
                 setTimeout(() => { 
                     if(diaHeader) diaHeader.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
-                }, 450); // Espera a animação de abertura
+                }, 450); 
                 break; 
             } 
         } 
@@ -219,13 +247,23 @@ function autoOpenAndHighlightNextDay() {
 document.addEventListener('DOMContentLoaded', () => {
      console.log("DOMContentLoaded disparado.");
      
-     // --- CORREÇÃO: Atribuir elementos do DOM AQUI ---
+     // --- Atribuição dos elementos do DOM ---
      themeToggle = document.getElementById('theme-toggle');
      playlistUrlInput = document.getElementById('playlistUrl');
      carregarBtn = document.getElementById('carregarPlaylist');
      esforcoPorDiaInput = document.getElementById('esforcoPorDia');
      videosContainer = document.getElementById('videosContainer');
      resetProgressBtn = document.getElementById('resetProgress');
+     reviewQueueContainer = document.getElementById('reviewQueueContainer');
+     reviewQueueItems = document.getElementById('reviewQueueItems');
+     // --- IDEIA 2 (Pomodoro) ---
+     pomodoroDisplay = document.getElementById('pomodoro-display');
+     pomodoroStartBtn = document.getElementById('pomodoro-start');
+     pomodoroResetBtn = document.getElementById('pomodoro-reset');
+     // --- IDEIA 3 (Stats) ---
+     statPercentual = document.getElementById('stat-percentual');
+     statConcluidos = document.getElementById('stat-concluidos');
+     statEsforco = document.getElementById('stat-esforco');
      // --- Fim da Atribuição ---
 
      try { 
@@ -234,17 +272,14 @@ document.addEventListener('DOMContentLoaded', () => {
              if(videosContainer) videosContainer.innerHTML = `<p style="color: red;">Falha ao conectar com o Banco de Dados. Verifique o console.</p>`; 
              return; 
          } 
-         // Verifica se todos os elementos essenciais foram encontrados
-         if (!themeToggle || !playlistUrlInput || !carregarBtn || !esforcoPorDiaInput || !videosContainer || !resetProgressBtn) { 
+         if (!themeToggle || !playlistUrlInput || !carregarBtn || !esforcoPorDiaInput || !videosContainer || !resetProgressBtn || !reviewQueueContainer || !reviewQueueItems || !pomodoroDisplay || !pomodoroStartBtn || !pomodoroResetBtn || !statPercentual || !statConcluidos || !statEsforco) { 
              console.error("Erro crítico: Elementos essenciais do DOM não encontrados!"); 
              alert("Erro: A interface não carregou corretamente."); 
              return; 
          } 
          console.log("Elementos do DOM encontrados com sucesso.");
 
-         // --- CORREÇÃO: Mover AddEventListeners para CÁ ---
-
-         // Listener do Tema
+         // --- AddEventListeners ---
          themeToggle.addEventListener('click', () => { 
              try { 
                  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light'; 
@@ -252,14 +287,9 @@ document.addEventListener('DOMContentLoaded', () => {
                  setTheme(newTheme); 
              } catch(e) { console.error("Erro no clique do tema:", e); } 
          });
-
-         // Listener do Botão Carregar
          carregarBtn.addEventListener('click', handleLoadPlaylist);
-
-         // Listener do Botão Resetar
          resetProgressBtn.addEventListener('click', async () => { 
              if (!firebaseInicializado) { showToast("Erro DB.", "warning"); return; } 
-             // Substitui o confirm() por um prompt simples (idealmente, use um modal customizado)
              const confirmReset = prompt("Digite 'SIM' para limpar todo o progresso (ação permanente):");
              if (confirmReset === 'SIM') { 
                  if (currentPlaylistId) { 
@@ -279,17 +309,18 @@ document.addEventListener('DOMContentLoaded', () => {
                  showToast("Reset cancelado.", "info");
              }
          });
-
+         // --- IDEIA 2 (Listeners Pomodoro) ---
+         pomodoroStartBtn.addEventListener('click', startPomodoro);
+         pomodoroResetBtn.addEventListener('click', resetPomodoro);
+         // --- FIM IDEIA 2 ---
+         
          // --- Fim dos Listeners ---
 
-
-         // Lógica de inicialização (carregar tema, esforço e playlist salva)
+         resetPomodoro(); // Define o tempo inicial no display
          const savedTheme = localStorage.getItem('meuTema') || 'light'; 
          setTheme(savedTheme); 
-         
          const savedEsforco = localStorage.getItem('meuEsforcoPorDia') || (typeof CONFIG_ESFORCO !== 'undefined' ? CONFIG_ESFORCO.ORCAMENTO_DIARIO_PADRAO : 10); 
          esforcoPorDiaInput.value = savedEsforco; 
-         
          let urlParaCarregar = null; 
          const urlSalva = localStorage.getItem('minhaPlaylistSalva'); 
          const urlPadrao = (typeof PLAYLIST_PADRAO_URL !== 'undefined') ? PLAYLIST_PADRAO_URL : null; 
@@ -318,6 +349,13 @@ async function handleLoadPlaylist() {
     if (!firebaseInicializado) { showToast("Erro: DB não conectado.", "warning"); return; } 
     if (!playlistUrlInput || !esforcoPorDiaInput) { console.error("Inputs não encontrados"); return; } 
     
+    // Limpa UI
+    if (reviewQueueContainer) reviewQueueContainer.style.display = 'none';
+    if (reviewQueueItems) reviewQueueItems.innerHTML = '';
+    allVideosCompletos = []; // Reseta array global
+    atualizarPainelDeProgresso(); // Reseta stats
+    resetPomodoro(); // Reseta timer
+
     const playlistUrl = playlistUrlInput.value; 
     if (!playlistUrl) { showToast("Insira uma URL de playlist.", "info"); return; } 
     
@@ -334,7 +372,6 @@ async function handleLoadPlaylist() {
     await carregarVideosDaPlaylist(currentPlaylistId); 
     console.log("handleLoadPlaylist finalizado"); 
 }
-
 
 // --- Funções de Cálculo de Esforço ---
 function parseDuration(durationString) {
@@ -357,53 +394,45 @@ function parseDuration(durationString) {
 
 function calcularEsforco(title, durationString) {
     try{
-        console.log(`[calcularEsforco] Título: "${title?.substring(0,30)}...", Duração: ${durationString}`);
+        // console.log(`[calcularEsforco] Título: "${title?.substring(0,30)}...", Duração: ${durationString}`);
         const config = (typeof CONFIG_ESFORCO !== 'undefined') ? CONFIG_ESFORCO : { PONTOS_POR_MINUTO: 0.5, PONTUACAO_MINIMA: 1, MODIFICADORES_TITULO: { FACIL:{palavras:[], modificador:0}, DIFICIL:{palavras:[], modificador:0} } };
         const { PONTOS_POR_MINUTO, PONTUACAO_MINIMA, MODIFICADORES_TITULO } = config;
-        
         const totalMinutes = parseDuration(durationString);
         let scoreBase = totalMinutes * PONTOS_POR_MINUTO;
-        
         if (isNaN(scoreBase)) {
              console.error(`   [calcularEsforco] scoreBase é NaN! totalMinutes=${totalMinutes}, PONTOS_POR_MINUTO=${PONTOS_POR_MINUTO}`);
-             scoreBase = 0; // Define como 0 se for NaN
+             scoreBase = 0;
         }
-        
         let scoreFinal = scoreBase;
-        console.log(`   totalMinutes=${totalMinutes.toFixed(2)}, scoreBase=${scoreBase.toFixed(2)}`);
-        
+        // console.log(`   totalMinutes=${totalMinutes.toFixed(2)}, scoreBase=${scoreBase.toFixed(2)}`);
         const lowerTitle = (title || "").toLowerCase();
         let modificadorAplicado = 0;
-        
         if (MODIFICADORES_TITULO?.FACIL?.palavras) { 
             for (const word of MODIFICADORES_TITULO.FACIL.palavras) { 
                 if (lowerTitle.includes(word)) { 
                     scoreFinal += MODIFICADORES_TITULO.FACIL.modificador; 
                     modificadorAplicado = MODIFICADORES_TITULO.FACIL.modificador; 
-                    console.log(`   -> Modificador FÁCIL (${word}): ${modificadorAplicado}`); 
+                    // console.log(`   -> Modificador FÁCIL (${word}): ${modificadorAplicado}`); 
                     break; 
                 } 
             } 
         }
-        
         if (modificadorAplicado === 0 && MODIFICADORES_TITULO?.DIFICIL?.palavras) { 
             for (const word of MODIFICADORES_TITULO.DIFICIL.palavras) { 
                 if (lowerTitle.includes(word)) { 
                     scoreFinal += MODIFICADORES_TITULO.DIFICIL.modificador; 
                     modificadorAplicado = MODIFICADORES_TITULO.DIFICIL.modificador; 
-                    console.log(`   -> Modificador DIFÍCIL (${word}): ${modificadorAplicado}`); 
+                    // console.log(`   -> Modificador DIFÍCIL (${word}): ${modificadorAplicado}`); 
                     break; 
                 } 
             } 
         }
-        
          if (isNaN(scoreFinal)) {
              console.error(`   [calcularEsforco] scoreFinal é NaN após modificadores! scoreBase=${scoreBase}, modificador=${modificadorAplicado}`);
-             scoreFinal = scoreBase; // Reverte para scoreBase se NaN
+             scoreFinal = scoreBase;
          }
-         
         const resultado = Math.max(PONTUACAO_MINIMA, Math.round(scoreFinal || 0)); 
-        console.log(`   Score Final (antes min): ${scoreFinal.toFixed(2)}, Resultado (após min ${PONTUACAO_MINIMA}): ${resultado}`);
+        // console.log(`   Score Final (antes min): ${scoreFinal.toFixed(2)}, Resultado (após min ${PONTUACAO_MINIMA}): ${resultado}`);
         return resultado;
     } catch(e){ console.error("Erro calcularEsforco:",e); return 1;}
 }
@@ -431,7 +460,7 @@ async function carregarVideosDaPlaylist(playlistId) {
     let videosInfo = []; 
     let videoIds = []; 
     let nextPageToken = '';
-    let allVideosCompletos = [];
+    // allVideosCompletos agora é global
 
     try {
         // --- INÍCIO ETAPA 1 (Fetch playlistItems) ---
@@ -447,7 +476,6 @@ async function carregarVideosDaPlaylist(playlistId) {
             const data = await response.json();
             
             data.items.forEach(item => {
-                // Ignora vídeos privados ou deletados que ainda podem aparecer na lista
                 if (item.snippet.title !== "Deleted video" && item.snippet.title !== "Private video" && item.contentDetails.videoId) {
                     videosInfo.push({
                         videoId: item.contentDetails.videoId,
@@ -462,12 +490,15 @@ async function carregarVideosDaPlaylist(playlistId) {
         console.log(`<<< Busca playlistItems concluída: ${videosInfo.length} vídeos válidos.`);
         // --- FIM ETAPA 1 ---
 
+        // --- IDEIA 1 (Processa a fila de revisão) ---
+        console.log("Processando fila de revisão...");
+        processarFilaDeRevisao(videosInfo, videoProgress);
+
         videosContainer.innerHTML = '<p class="loading-message">Buscando durações dos vídeos...</p>';
         
         // --- INÍCIO ETAPA 2 (Fetch videos/durações) ---
         const durationMap = {};
          if (videoIds.length > 0) {
-            // A API de vídeos aceita até 50 IDs por vez
             for (let i = 0; i < videoIds.length; i += 50) {
                 const videoIdsChunk = videoIds.slice(i, i + 50);
                 const videoUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIdsChunk.join(',')}&key=${API_KEY}`;
@@ -490,13 +521,29 @@ async function carregarVideosDaPlaylist(playlistId) {
 
         // ETAPA 3: Combinar e Calcular Esforço
         console.log("Calculando esforço...");
+        // Atribui ao global
         allVideosCompletos = videosInfo.map(video => { 
             const duration = durationMap[video.videoId] || 'PT0S'; 
             const esforco = calcularEsforco(video.title, duration); 
-            const anotacaoSalva = (videoProgress[video.videoId] && typeof videoProgress[video.videoId] === 'string') ? videoProgress[video.videoId] : ""; 
-            return { ...video, duration, esforco, anotacaoSalva }; 
+            
+            const progresso = videoProgress[video.videoId];
+            const isChecked = progresso !== undefined;
+            let anotacaoSalva = "";
+            if (progresso) {
+                if (typeof progresso === 'object' && progresso.anotacao) {
+                    anotacaoSalva = progresso.anotacao; 
+                } else if (typeof progresso === 'string') {
+                    anotacaoSalva = progresso; 
+                }
+            }
+            
+            return { ...video, duration, esforco, anotacaoSalva, isChecked }; 
         });
         console.log("<<< Cálculo esforço concluído. Tamanho:", allVideosCompletos.length);
+
+        // --- IDEIA 3 (Atualiza painel de progresso) ---
+        atualizarPainelDeProgresso();
+        // --- FIM IDEIA 3 ---
 
         videosContainer.innerHTML = '';
         if (allVideosCompletos.length === 0) { 
@@ -508,49 +555,35 @@ async function carregarVideosDaPlaylist(playlistId) {
         // ETAPA 4: Montar os Dias HTML
         console.log("Montando HTML dos dias...");
         const orcamentoDiario = parseInt(esforcoPorDiaInput.value) || (typeof CONFIG_ESFORCO !== 'undefined' ? CONFIG_ESFORCO.ORCAMENTO_DIARIO_PADRAO : 10);
-        let diaAtualNum = 0; // Começa em 0 para o primeiro dia ser 1
+        let diaAtualNum = 0;
         let esforcoNoDia = 0; 
         let diaDiv = null; 
         let diaHeader = null; 
         let diaConteudo = null;
-        console.log("Verificando array 'allVideosCompletos' antes loop. Tamanho:", allVideosCompletos.length);
 
         allVideosCompletos.forEach((video, index) => {
-             console.log(`---> Entrando no loop forEach - Vídeo ${index + 1}`);
              if (!video?.videoId) { console.warn(`Pulando vídeo inválido ${index}:`, video); return; }
              
-             const { videoId, title, esforco, duration, anotacaoSalva } = video; 
+             const { videoId, title, esforco, duration, anotacaoSalva, isChecked } = video; 
              const videoTitle = title || "Título Indisponível"; 
-             const isChecked = videoProgress[videoId] !== undefined;
              
-             // --- CORREÇÃO LÓGICA DE CRIAÇÃO DE DIA ---
-             // Cria um novo dia se:
-             // 1. É o primeiro vídeo (diaConteudo é null)
-             // 2. O esforço do dia atual JÁ ATINGIU o orçamento E não está zerado (para não criar dias vazios)
              if (!diaConteudo || (esforcoNoDia >= orcamentoDiario && esforcoNoDia > 0 )) {
-                  
-                  // Se já existe um dia, finaliza o cálculo de esforço dele antes de criar um novo
                   if (diaHeader && esforcoNoDia > 0) {
                       const frase = getFraseDeEsforco(esforcoNoDia);
                       diaHeader.querySelector('.frase-esforco').textContent = frase;
                       diaHeader.querySelector('span:first-child').textContent += ` (Total: ${esforcoNoDia} pts)`;
                   }
-
-                  // Cria o novo dia
                   diaAtualNum++; 
                   esforcoNoDia = 0; 
                   diaDiv = document.createElement('div'); 
                   diaDiv.className = 'dia'; 
-                  
                   diaHeader = document.createElement('div'); 
                   diaHeader.className = 'dia-header'; 
                   diaHeader.innerHTML = `<h2><span>Dia ${diaAtualNum}</span><span class="frase-esforco"></span><span class="completion-emoji"></span></h2>`; 
                   diaDiv.appendChild(diaHeader); 
-                  
                   diaConteudo = document.createElement('div'); 
                   diaConteudo.className = 'dia-conteudo'; 
                   diaDiv.appendChild(diaConteudo); 
-                  
                   if (videosContainer) { 
                       videosContainer.appendChild(diaDiv); 
                   } else { 
@@ -558,7 +591,6 @@ async function carregarVideosDaPlaylist(playlistId) {
                       return; 
                   } 
              }
-             // --- FIM CORREÇÃO LÓGICA ---
 
              if (!diaConteudo || !(diaConteudo instanceof Element)) { 
                  console.error(`ERRO LOOP: diaConteudo inválido video ${index} (${videoId}). Valor:`, diaConteudo); 
@@ -578,7 +610,7 @@ async function carregarVideosDaPlaylist(playlistId) {
                     <p>Vídeo pronto para carregar...</p>
                  </div> 
                  <div class="anotacao-area">
-                    <label for="anotacao-${videoId}">O que você aprendeu com este vídeo?</label>
+                    <label for="anotacao-${videoId}">Como você explicaria o conceito deste vídeo para alguém?</label>
                     <textarea id="anotacao-${videoId}" data-video-id="${videoId}" rows="2" placeholder="Escreva aqui para poder marcar como concluído...">${anotacaoSalva}</textarea>
                  </div> 
               </div>`;
@@ -617,9 +649,7 @@ async function carregarVideosDaPlaylist(playlistId) {
         // Listener do Acordeão
         document.querySelectorAll('.dia-header').forEach(header => { 
             header.addEventListener('click', (e) => { 
-                // Evita fechar/abrir ao clicar em links ou botões dentro do header (se houver)
                 if (e.target.closest('a, button')) return; 
-                
                 const diaConteudo = header.nextElementSibling;
                 if (diaConteudo) {
                     if (parseFloat(diaConteudo.style.maxHeight) > 0) {
@@ -641,39 +671,38 @@ async function carregarVideosDaPlaylist(playlistId) {
                 const textarea = videoItem.querySelector(`.anotacao-area textarea[data-video-id="${videoId}"]`);
                 const isChecked = e.target.checked;
                 
-                // "Porteiro da Memória"
                 if (isChecked && (!textarea || textarea.value.trim().length === 0)) {
-                    // Impede a marcação se a anotação estiver vazia
                     e.target.checked = false; 
                     showToast("Escreva o que aprendeu antes de concluir!", "warning");
                     
-                    // Efeito de "shake" no textarea
-                    textarea.classList.add('shake-animation'); // (Precisa definir essa animação no CSS)
-                    textarea.style.borderColor = 'red'; // Feedback visual
+                    textarea.style.transition = 'transform 0.1s, border-color 0.2s';
+                    textarea.style.borderColor = 'red';
+                    // Efeito shake rápido
+                    textarea.style.transform = 'translateX(-5px)';
+                    setTimeout(() => { textarea.style.transform = 'translateX(5px)'; }, 100);
+                    setTimeout(() => { textarea.style.transform = 'translateX(-5px)'; }, 200);
+                    setTimeout(() => { textarea.style.transform = 'translateX(5px)'; }, 300);
+                    setTimeout(() => { textarea.style.transform = 'translateX(0)'; }, 400);
+
                     textarea.focus();
                     
                     setTimeout(() => {
-                        textarea.classList.remove('shake-animation');
-                        textarea.style.borderColor = ''; // Reseta a borda
+                        textarea.style.borderColor = '';
                     }, 600);
                     
-                    // Se o player disparou o 'change', remove o gatilho
                     delete checkbox.dataset.triggeredByPlayer;
-                    return; // Para a execução
+                    return;
                 }
 
-                // Se passou pelo porteiro (ou está desmarcando)
                 const anotacao = textarea ? textarea.value.trim() : "";
-                await saveProgress(currentPlaylistId, videoId, isChecked, anotacao);
+                await saveProgress(currentPlaylistId, videoId, isChecked, anotacao); // saveProgress já atualiza os stats
 
-                // Verifica se o dia foi concluído
                 const diaConteudo = e.target.closest('.dia-conteudo');
                 if (diaConteudo) {
                     const diaConcluido = checkDayCompletion(diaConteudo);
                     
-                    // Se o dia foi concluído AGORA
+                    // --- ATUALIZAÇÃO (Transição Suave) ---
                     if (diaConcluido && isChecked) {
-                         // Lógica de "Guardião da Retenção"
                          const configA = (typeof CONFIG_APRENDIZADO !== 'undefined') ? CONFIG_APRENDIZADO : {}; 
                          const limiteDias = configA.LIMITE_DIAS_CONCLUIDOS || 2;
                          const msgAviso = configA.MENSAGEM_AVISO || "Muitos dias hoje! Que tal uma pausa?";
@@ -682,18 +711,21 @@ async function carregarVideosDaPlaylist(playlistId) {
                          if (diasHoje > limiteDias) {
                             showToast(msgAviso.replace('{count}', diasHoje), "warning");
                          } else {
-                            showToast("Dia Concluído!", "info");
+                            showToast("Dia Concluído! Ótimo trabalho.", "info");
                          }
                          
-                         // Fecha o dia atual e abre o próximo
-                         closeDay(diaConteudo);
-                         autoOpenAndHighlightNextDay();
+                         // Adiciona delay antes de fechar e rolar
+                         setTimeout(() => {
+                            closeDay(diaConteudo);
+                            autoOpenAndHighlightNextDay();
+                         }, 1500); // 1.5 segundos de delay
                     }
+                    // --- FIM DA ATUALIZAÇÃO ---
                 }
             }); 
         }); 
         
-        // Listener do Textarea (Salva anotação se o vídeo JÁ ESTIVER concluído)
+        // Listener do Textarea
         document.querySelectorAll('.anotacao-area textarea').forEach(textarea => { 
             textarea.addEventListener('input', async (e) => { 
                 const videoId = e.target.dataset.videoId;
@@ -702,9 +734,8 @@ async function carregarVideosDaPlaylist(playlistId) {
                 
                 const checkbox = videoItem.querySelector(`.video-title-wrapper input[data-video-id="${videoId}"]`);
                 
-                // Só salva a anotação no DB se o vídeo já estiver marcado como concluído
                 if (checkbox && checkbox.checked) {
-                    const anotacao = e.target.value; // Não usa trim() para permitir rascunho
+                    const anotacao = e.target.value; 
                     await saveProgress(currentPlaylistId, videoId, true, anotacao);
                 }
             }); 
@@ -717,16 +748,260 @@ async function carregarVideosDaPlaylist(playlistId) {
 }
 // --- FIM ETAPA 6 ---
 
+// --- IDEIA 3 (Função Painel de Progresso) ---
+function atualizarPainelDeProgresso() {
+    if (!statPercentual || !statConcluidos || !statEsforco) {
+        console.warn("Elementos do painel de stats não encontrados.");
+        return;
+    }
+
+    const totalVideos = allVideosCompletos.length;
+    const videosConcluidos = Object.keys(videoProgress).length;
+    
+    let esforcoAcumulado = 0;
+    if (totalVideos > 0) {
+        for (const videoId in videoProgress) {
+            const video = allVideosCompletos.find(v => v.videoId === videoId);
+            if (video && video.esforco) {
+                esforcoAcumulado += video.esforco;
+            }
+        }
+    }
+
+    const percentual = (totalVideos > 0) ? ((videosConcluidos / totalVideos) * 100) : 0;
+
+    statPercentual.textContent = `${percentual.toFixed(0)}%`;
+    statConcluidos.textContent = `${videosConcluidos} / ${totalVideos}`;
+    statEsforco.textContent = `${esforcoAcumulado} pts`;
+}
+// --- FIM IDEIA 3 ---
+
+
+// --- IDEIA 1 (Funções do Desafio da Memória) ---
+function processarFilaDeRevisao(videosInfo, progressoSalvo) {
+    if (!reviewQueueContainer || !reviewQueueItems) {
+        console.error("Containers da fila de revisão não encontrados.");
+        return;
+    }
+
+    const filaDeRevisao = [];
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); 
+
+    const intervalos = (typeof CONFIG_APRENDIZADO !== 'undefined' ? CONFIG_APRENDIZADO.INTERVALOS_REVISAO : [1, 3, 7, 16, 30]);
+
+    for (const videoId in progressoSalvo) {
+        const progresso = progressoSalvo[videoId];
+
+        if (typeof progresso !== 'object' || !progresso.dataConclusao || !progresso.statusRevisao) {
+            continue; 
+        }
+
+        const { statusRevisao, dataConclusao, anotacao } = progresso;
+        const indiceIntervalo = statusRevisao - 1; 
+
+        if (indiceIntervalo >= intervalos.length) {
+            continue; 
+        }
+
+        const diasParaAdicionar = intervalos[indiceIntervalo];
+        const dataConcl = new Date(dataConclusao);
+        
+        const dataRevisao = new Date(dataConcl);
+        dataRevisao.setDate(dataConcl.getDate() + diasParaAdicionar);
+        dataRevisao.setHours(0, 0, 0, 0); 
+
+        if (hoje >= dataRevisao) {
+            const info = videosInfo.find(v => v.videoId === videoId);
+            const title = info ? info.title : "Título não encontrado";
+            filaDeRevisao.push({ videoId, title, anotacao, statusRevisao });
+        }
+    }
+
+    // Renderiza a fila
+    reviewQueueItems.innerHTML = '';
+    if (filaDeRevisao.length > 0) {
+        console.log(`Itens para revisar hoje: ${filaDeRevisao.length}`);
+        reviewQueueContainer.style.display = 'block';
+        
+        filaDeRevisao.forEach(item => {
+            // HTML do "Desafio"
+            const itemHtml = `
+                <div class="review-item" data-video-id="${item.videoId}">
+                    <h4>${item.title}</h4>
+                    
+                    <div class="review-desafio-area">
+                        <label for="review-anotacao-${item.videoId}">O que você lembra sobre este vídeo?</label>
+                        <textarea id="review-anotacao-${item.videoId}" rows="3" placeholder="Tente lembrar sem olhar..."></textarea>
+                        <button class="review-btn-revelar" data-video-id="${item.videoId}">Comparar com Anotação</button>
+                    </div>
+
+                    <div class="review-revelar-area hidden">
+                        <p><strong>Sua anotação original:</strong> "${item.anotacao}"</p>
+                        <div class="review-actions">
+                            <button class="review-btn-nao-lembrei" data-video-id="${item.videoId}">❌ Não Lembrei</button>
+                            <button class="review-btn-lembrei" data-video-id="${item.videoId}">✅ Lembrei!</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            reviewQueueItems.innerHTML += itemHtml;
+        });
+
+        // Adiciona listeners aos botões
+        document.querySelectorAll('.review-btn-revelar').forEach(btn => btn.addEventListener('click', handleRevealReview));
+        document.querySelectorAll('.review-btn-lembrei').forEach(btn => btn.addEventListener('click', handleReviewAction));
+        document.querySelectorAll('.review-btn-nao-lembrei').forEach(btn => btn.addEventListener('click', handleReviewAction));
+
+    } else {
+        console.log("Nenhum item para revisar hoje.");
+        reviewQueueContainer.style.display = 'none';
+    }
+}
+
+// Nova função para o botão "Revelar"
+function handleRevealReview(e) {
+    const videoId = e.target.dataset.videoId;
+    const itemElement = e.target.closest('.review-item');
+    if (!itemElement) return;
+
+    const desafioArea = itemElement.querySelector('.review-desafio-area');
+    const revelarArea = itemElement.querySelector('.review-revelar-area');
+    
+    // Esconde o botão "Revelar" (ou a área toda) e mostra a área de comparação
+    if (desafioArea) desafioArea.querySelector('.review-btn-revelar').classList.add('hidden');
+    if (revelarArea) revelarArea.classList.remove('hidden');
+}
+
+async function handleReviewAction(e) {
+    const videoId = e.target.dataset.videoId;
+    const progresso = videoProgress[videoId];
+    if (!progresso || !currentPlaylistId) return;
+
+    let novoStatus;
+    const isLembrei = e.target.classList.contains('review-btn-lembrei');
+
+    if (isLembrei) {
+        novoStatus = progresso.statusRevisao + 1; 
+        showToast("Ótimo! Próxima revisão em mais tempo.", "info");
+    } else {
+        novoStatus = 1; 
+        showToast("Sem problemas! Revisão agendada para amanhã.", "info");
+    }
+
+    const dataAtualizada = { 
+        ...progresso, 
+        statusRevisao: novoStatus, 
+        dataConclusao: new Date().toISOString() 
+    };
+
+    videoProgress[videoId] = dataAtualizada; 
+
+    try {
+        const docRef = db.collection('progress').doc(currentPlaylistId);
+        const updateData = {};
+        updateData[videoId] = dataAtualizada;
+        await docRef.set(updateData, { merge: true });
+
+        const itemElement = e.target.closest('.review-item');
+        if (itemElement) itemElement.remove();
+
+        if (reviewQueueItems && reviewQueueItems.children.length === 0) {
+            if (reviewQueueContainer) reviewQueueContainer.style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error("Erro ao salvar revisão:", error);
+        showToast("Erro ao salvar sua revisão.", "warning");
+    }
+}
+// --- FIM IDEIA 1 ---
+
+
+// --- IDEIA 2 (Funções do Modo Foco) ---
+function startPomodoro() {
+    if (isPomodoroRunning) {
+        // Se está rodando, o botão vira "Pausar"
+        stopPomodoro();
+        if (isPausa) {
+            pomodoroStartBtn.textContent = "▶ Continuar Pausa";
+        } else {
+            pomodoroStartBtn.textContent = "▶ Continuar Foco";
+        }
+        return;
+    } 
+
+    isPomodoroRunning = true;
+    
+    if (!isPausa) {
+        // Se não estava em pausa, inicia (ou continua) sessão de foco
+        if (pomodoroTimer === null) { // Define o tempo se for a primeira vez
+             pomodoroTimer = (typeof CONFIG_POMODORO !== 'undefined' ? CONFIG_POMODORO.DURACAO_SESSAO_MIN : 25) * 60;
+        }
+        pomodoroStartBtn.textContent = "⏸ Pausar Foco";
+    } else {
+        // Se estava em pausa, inicia (ou continua) a pausa
+         if (pomodoroTimer === null) { // Define o tempo se for a primeira vez
+            pomodoroTimer = (typeof CONFIG_POMODORO !== 'undefined' ? CONFIG_POMODORO.DURACAO_PAUSA_MIN : 5) * 60;
+         }
+        pomodoroStartBtn.textContent = "⏸ Pausar Pausa";
+    }
+
+    pomodoroInterval = setInterval(() => {
+        pomodoroTimer--;
+        updatePomodoroDisplay();
+
+        if (pomodoroTimer <= 0) {
+            stopPomodoro(); // Para o timer
+            
+            if (!isPausa) {
+                // Sessão de foco acabou, inicia pausa
+                isPausa = true;
+                pomodoroTimer = null; // Reseta timer para a pausa começar
+                showToast("Sessão de foco concluída! Hora da pausa.", "info");
+                startPomodoro(); // Inicia a pausa automaticamente
+            } else {
+                // Pausa acabou, volta ao normal
+                isPausa = false;
+                showToast("Pausa concluída! Pronto para mais uma sessão?", "info");
+                resetPomodoro(); // Reseta para a próxima sessão de foco
+            }
+        }
+    }, 1000); // 1 segundo
+}
+
+function stopPomodoro() {
+    clearInterval(pomodoroInterval);
+    isPomodoroRunning = false;
+    // O texto do botão é atualizado por quem chama (startPomodoro ou resetPomodoro)
+}
+
+function resetPomodoro() {
+    stopPomodoro();
+    isPausa = false;
+    pomodoroTimer = (typeof CONFIG_POMODORO !== 'undefined' ? CONFIG_POMODORO.DURACAO_SESSAO_MIN : 25) * 60;
+    updatePomodoroDisplay();
+    if (pomodoroStartBtn) pomodoroStartBtn.textContent = "▶ Iniciar Foco";
+}
+
+function updatePomodoroDisplay() {
+    if (!pomodoroDisplay) return;
+    const minutes = Math.floor(pomodoroTimer / 60);
+    const seconds = pomodoroTimer % 60;
+    pomodoroDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+// --- FIM IDEIA 2 ---
+
 
 // --- Função onPlayerStateChange (Global) ---
 function onPlayerStateChange(event) { 
     try { 
         if (event.data === YT.PlayerState.ENDED) { 
             const playerElement = event.target.getIframe();
-            const videoId = playerElement.id.replace('player-', ''); // Pega o ID do placeholder
+            const videoId = playerElement.parentElement.dataset.videoId;
             
             if (!videoId) {
-                console.warn("onPlayerStateChange: Não foi possível extrair videoId do player", playerElement);
+                console.warn("onPlayerStateChange: Não foi possível extrair videoId do player", playerElement.parentElement);
                 return;
             }
             
@@ -734,10 +1009,8 @@ function onPlayerStateChange(event) {
             
             if (checkbox && !checkbox.checked) { 
                 console.log(`Player ended (ID: ${videoId}), disparando 'change' no checkbox.`);
-                // Adiciona um dataset para o listener 'change' saber que foi o player
                 checkbox.dataset.triggeredByPlayer = 'true'; 
                 checkbox.checked = true; 
-                // Dispara o evento 'change' para ativar o "Porteiro da Memória"
                 checkbox.dispatchEvent(new Event('change')); 
             } 
         } 

@@ -3,13 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- 
-      CSP SIMPLIFICADO: 
-      Removi os hashes SHA-256 que são muito frágeis e quebram se qualquer script mudar.
-      Esta versão é mais permissiva, mas ainda segura, permitindo os scripts necessários.
-      Adicionado 'unsafe-inline' que a API do YouTube (IFrame) pode exigir para funcionar.
-    -->
     <meta http-equiv="Content-Security-Policy"
           content="connect-src 'self' https://www.googleapis.com https://firestore.googleapis.com https://www.gstatic.com wss://*.firebaseio.com;
                    frame-src https://www.youtube.com;
@@ -19,11 +12,6 @@
                    base-uri 'self';">
 
     <script src="config.js"></script>
-
-    <!-- 
-      Carregando os SDKs do Firebase (versão compat para corresponder ao seu main.js) 
-      e a API de IFrame do YouTube.
-    -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
@@ -31,22 +19,213 @@
     <title>Meu Cronograma de Vídeos</title>
 
     <style>
-        /* Cola TODO o seu CSS aqui */
-        :root{--cor-fundo:#f0f2f5;--cor-container:#ffffff;--cor-texto-principal:#2c3e50;--cor-texto-secundario:#444;--cor-texto-fraco:#777;--cor-borda:#ddd;--cor-header-dia:#f9f9f9;--cor-header-dia-hover:#f1f1f1;--cor-placeholder:#e9e9e9;--cor-placeholder-borda:#ccc;--cor-sombra:rgba(0, 0, 0, 0.05);--cor-botao-principal:#007bff;--cor-botao-principal-hover:#0056b3;}[data-theme="dark"]{--cor-fundo:#121212;--cor-container:#1e1e1e;--cor-texto-principal:#e0e0e0;--cor-texto-secundario:#c5c5c5;--cor-texto-fraco:#888;--cor-borda:#444;--cor-header-dia:#2a2a2a;--cor-header-dia-hover:#333;--cor-placeholder:#333;--cor-placeholder-borda:#555;--cor-sombra:rgba(255, 255, 255, 0.05);}*{box-sizing:border-box;margin:0;padding:0;}html{scroll-behavior:smooth;}body{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;line-height:1.6;background-color:var(--cor-fundo);color:var(--cor-texto-principal);padding:20px;transition:background-color 0.2s, color 0.2s;}.container{max-width:900px;margin:0 auto;background-color:var(--cor-container);border-radius:8px;padding:25px 30px;box-shadow:0 4px 12px var(--cor-sombra);transition:background-color 0.2s;}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;}h1{text-align:center;color:var(--cor-texto-principal);margin:0;flex-grow:1;}#theme-toggle{font-size:1.5rem;background:none;border:none;color:var(--cor-texto-principal);cursor:pointer;padding:5px;}.input-area{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px;}#playlistUrl{flex-grow:1;min-width:300px;padding:12px;border:1px solid var(--cor-borda);background-color:var(--cor-fundo);color:var(--cor-texto-principal);border-radius:6px;font-size:16px;}#carregarPlaylist{padding:0 20px;font-size:16px;font-weight:bold;color:#fff;background-color:var(--cor-botao-principal);border:none;border-radius:6px;cursor:pointer;transition:background-color 0.2s;}#carregarPlaylist:hover{background-color:var(--cor-botao-principal-hover);}.settings-area{display:flex;gap:20px;margin-bottom:30px;align-items:center;}.setting-item{display:flex;align-items:center;gap:8px;}.setting-item label{font-size:0.9em;color:var(--cor-texto-fraco);}#esforcoPorDia{width:70px;padding:8px;font-size:1em;border:1px solid var(--cor-borda);background-color:var(--cor-fundo);color:var(--cor-texto-principal);border-radius:6px;text-align:center;}#resetProgress{font-size:0.9em;color:var(--cor-botao-principal);background:none;border:none;cursor:pointer;padding:5px;}#resetProgress:hover{text-decoration:underline;}.loading-message{text-align:center;font-size:1.1em;color:var(--cor-texto-fraco);padding:30px 0;}.dia{border:1px solid var(--cor-borda);border-radius:8px;margin-bottom:15px;overflow:hidden;transition:all 0.3s ease;}.dia:hover{box-shadow:0 2px 8px var(--cor-sombra);}.dia-destacado{border-color:var(--cor-botao-principal);box-shadow:0 0 12px rgba(0,123,255,0.5);}.dia-header{background-color:var(--cor-header-dia);padding:15px 20px;cursor:pointer;border-bottom:1px solid var(--cor-borda);transition:background-color 0.2s;}.dia-header:hover{background-color:var(--cor-header-dia-hover);}.dia-header h2{margin:0;color:var(--cor-texto-principal);font-size:1.3em;display:flex;align-items:center;justify-content:space-between;}.dia-header h2 .frase-esforco{font-size:0.8em;font-style:italic;color:var(--cor-texto-fraco);margin-left:10px;}.dia-conteudo{display:block;max-height:0;overflow:hidden;padding-left:20px;padding-right:20px;padding-top:0;padding-bottom:0;transition:max-height 0.4s ease-out, padding-top 0.4s ease-out, padding-bottom 0.4s ease-out;}.video-item{margin-bottom:25px;}.video-title-wrapper{display:flex;align-items:center;gap:10px;}.video-title-wrapper input[type="checkbox"]{width:1.3em;height:1.3em;cursor:pointer;}.video-item h3{margin:0;font-size:1.1em;color:var(--cor-texto-secundario);display:flex;align-items:center;gap:8px;}iframe{width:100%;max-width:100%;height:auto;aspect-ratio:16 / 9;border:none;border-radius:8px;margin-top:10px;}.video-placeholder{width:100%;aspect-ratio:16 / 9;background-color:var(--cor-placeholder);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--cor-texto-fraco);font-style:italic;margin-top:10px;border:1px dashed var(--cor-placeholder-borda);}.completion-emoji{font-size:0.9em;margin-left:10px;transform:scale(0);transition:transform 0.2s ease-out;}.completion-emoji.completed{transform:scale(1);}.esforco-badge{font-size:0.8em;font-weight:bold;color:var(--cor-botao-principal);background-color:var(--cor-fundo);padding:2px 8px;border-radius:10px;border:1px solid var(--cor-borda);}#toast-message{position:fixed;top:20px;left:50%;transform:translate(-50%, -100px);background-color:var(--cor-botao-principal);color:white;padding:12px 25px;border-radius:25px;font-size:1.1em;font-weight:bold;box-shadow:0 4px 10px rgba(0,0,0,0.2);opacity:0;transition:transform 0.4s ease-out, opacity 0.4s ease-out;z-index:1000;max-width:90%;text-align:center;}#toast-message.show{transform:translate(-50%, 0);opacity:1;}#toast-message.toast-warning{background-color:#f39c12;color:#000;}.anotacao-area{margin-top:10px;}.anotacao-area label{display:block;font-size:0.9em;color:var(--cor-texto-fraco);margin-bottom:5px;}.anotacao-area textarea{width:100%;min-height:60px;padding:10px;border:1px solid var(--cor-borda);border-radius:6px;background-color:var(--cor-fundo);color:var(--cor-texto-principal);font-family:inherit;font-size:1em;resize:vertical;transition:border-color 0.2s;}.anotacao-area textarea:invalid{border-color:#e74c3c;animation:shake 0.5s ease-in-out;}@keyframes shake{0%, 100%{transform:translateX(0);}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
+        /* ... (Todo o seu CSS anterior continua aqui) ... */
+        :root{--cor-fundo:#f0f2f5;--cor-container:#ffffff;--cor-texto-principal:#2c3e50;--cor-texto-secundario:#444;--cor-texto-fraco:#777;--cor-borda:#ddd;--cor-header-dia:#f9f9f9;--cor-header-dia-hover:#f1f1f1;--cor-placeholder:#e9e9e9;--cor-placeholder-borda:#ccc;--cor-sombra:rgba(0, 0, 0, 0.05);--cor-botao-principal:#007bff;--cor-botao-principal-hover:#0056b3;--cor-botao-sucesso: #28a745; --cor-botao-sucesso-hover: #218838; --cor-botao-erro: #dc3545; --cor-botao-erro-hover: #c82333; --cor-botao-aviso: #ffc107; --cor-botao-aviso-hover: #e0a800;}[data-theme="dark"]{--cor-fundo:#121212;--cor-container:#1e1e1e;--cor-texto-principal:#e0e0e0;--cor-texto-secundario:#c5c5c5;--cor-texto-fraco:#888;--cor-borda:#444;--cor-header-dia:#2a2a2a;--cor-header-dia-hover:#333;--cor-placeholder:#333;--cor-placeholder-borda:#555;--cor-sombra:rgba(255, 255, 255, 0.05);}*{box-sizing:border-box;margin:0;padding:0;}html{scroll-behavior:smooth;}body{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;line-height:1.6;background-color:var(--cor-fundo);color:var(--cor-texto-principal);padding:20px;transition:background-color 0.2s, color 0.2s;}.container{max-width:900px;margin:0 auto;background-color:var(--cor-container);border-radius:8px;padding:25px 30px;box-shadow:0 4px 12px var(--cor-sombra);transition:background-color 0.2s;}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;flex-wrap: wrap;}h1{text-align:center;color:var(--cor-texto-principal);margin:0;flex-grow:1;}#theme-toggle{font-size:1.5rem;background:none;border:none;color:var(--cor-texto-principal);cursor:pointer;padding:5px;}.input-area{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px;}#playlistUrl{flex-grow:1;min-width:300px;padding:12px;border:1px solid var(--cor-borda);background-color:var(--cor-fundo);color:var(--cor-texto-principal);border-radius:6px;font-size:16px;}#carregarPlaylist{padding:0 20px;font-size:16px;font-weight:bold;color:#fff;background-color:var(--cor-botao-principal);border:none;border-radius:6px;cursor:pointer;transition:background-color 0.2s;}#carregarPlaylist:hover{background-color:var(--cor-botao-principal-hover);}.settings-area{display:flex;gap:20px;margin-bottom:20px;align-items:center;}.setting-item{display:flex;align-items:center;gap:8px;}.setting-item label{font-size:0.9em;color:var(--cor-texto-fraco);}#esforcoPorDia{width:70px;padding:8px;font-size:1em;border:1px solid var(--cor-borda);background-color:var(--cor-fundo);color:var(--cor-texto-principal);border-radius:6px;text-align:center;}#resetProgress{font-size:0.9em;color:var(--cor-botao-principal);background:none;border:none;cursor:pointer;padding:5px;}#resetProgress:hover{text-decoration:underline;}.loading-message{text-align:center;font-size:1.1em;color:var(--cor-texto-fraco);padding:30px 0;}.dia{border:1px solid var(--cor-borda);border-radius:8px;margin-bottom:15px;overflow:hidden;transition:all 0.3s ease;}.dia:hover{box-shadow:0 2px 8px var(--cor-sombra);}.dia-destacado{border-color:var(--cor-botao-principal);box-shadow:0 0 12px rgba(0,123,255,0.5);}.dia-header{background-color:var(--cor-header-dia);padding:15px 20px;cursor:pointer;border-bottom:1px solid var(--cor-borda);transition:background-color 0.2s;}.dia-header:hover{background-color:var(--cor-header-dia-hover);}.dia-header h2{margin:0;color:var(--cor-texto-principal);font-size:1.3em;display:flex;align-items:center;justify-content:space-between;}.dia-header h2 .frase-esforco{font-size:0.8em;font-style:italic;color:var(--cor-texto-fraco);margin-left:10px;}.dia-conteudo{display:block;max-height:0;overflow:hidden;padding-left:20px;padding-right:20px;padding-top:0;padding-bottom:0;transition:max-height 0.4s ease-out, padding-top 0.4s ease-out, padding-bottom 0.4s ease-out;}.video-item{margin-bottom:25px;}.video-title-wrapper{display:flex;align-items:center;gap:10px;}.video-title-wrapper input[type="checkbox"]{width:1.3em;height:1.3em;cursor:pointer;}.video-item h3{margin:0;font-size:1.1em;color:var(--cor-texto-secundario);display:flex;align-items:center;gap:8px;}iframe{width:100%;max-width:100%;height:auto;aspect-ratio:16 / 9;border:none;border-radius:8px;margin-top:10px;}.video-placeholder{width:100%;aspect-ratio:16 / 9;background-color:var(--cor-placeholder);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--cor-texto-fraco);font-style:italic;margin-top:10px;border:1px dashed var(--cor-placeholder-borda);}.completion-emoji{font-size:0.9em;margin-left:10px;transform:scale(0);transition:transform 0.2s ease-out;}.completion-emoji.completed{transform:scale(1);}.esforco-badge{font-size:0.8em;font-weight:bold;color:var(--cor-botao-principal);background-color:var(--cor-fundo);padding:2px 8px;border-radius:10px;border:1px solid var(--cor-borda);}#toast-message{position:fixed;top:20px;left:50%;transform:translate(-50%, -100px);background-color:var(--cor-botao-principal);color:white;padding:12px 25px;border-radius:25px;font-size:1.1em;font-weight:bold;box-shadow:0 4px 10px rgba(0,0,0,0.2);opacity:0;transition:transform 0.4s ease-out, opacity 0.4s ease-out;z-index:1000;max-width:90%;text-align:center;}#toast-message.show{transform:translate(-50%, 0);opacity:1;}#toast-message.toast-warning{background-color:#f39c12;color:#000;}.anotacao-area{margin-top:10px;}.anotacao-area label{display:block;font-size:0.9em;color:var(--cor-texto-fraco);margin-bottom:5px;}.anotacao-area textarea{width:100%;min-height:60px;padding:10px;border:1px solid var(--cor-borda);border-radius:6px;background-color:var(--cor-fundo);color:var(--cor-texto-principal);font-family:inherit;font-size:1em;resize:vertical;transition:border-color 0.2s, transform 0.1s;}.anotacao-area textarea:invalid{border-color:#e74c3c;animation:shake 0.5s ease-in-out;}@keyframes shake{0%, 100%{transform:translateX(0);}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
+
+        /* --- IDEIA 2 (CSS Modo Foco) --- */
+        #pomodoro-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: var(--cor-fundo);
+            margin-bottom: 20px;
+        }
+        #pomodoro-display {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--cor-botao-principal);
+        }
+        .pomodoro-btn {
+            padding: 8px 15px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #pomodoro-start { background-color: var(--cor-botao-sucesso); }
+        #pomodoro-start:hover { background-color: var(--cor-botao-sucesso-hover); }
+        #pomodoro-reset { background-color: var(--cor-botao-erro); }
+        #pomodoro-reset:hover { background-color: var(--cor-botao-erro-hover); }
+
+        /* --- IDEIA 3 (CSS Painel de Progresso) --- */
+        #stats-panel {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-item {
+            flex-grow: 1;
+            flex-basis: 0;
+            background-color: var(--cor-fundo);
+            border-radius: 8px;
+            padding: 15px 20px;
+            text-align: center;
+            border: 1px solid var(--cor-borda);
+        }
+        .stat-item h3 {
+            font-size: 0.9em;
+            color: var(--cor-texto-fraco);
+            margin: 0 0 5px 0;
+            text-transform: uppercase;
+        }
+        .stat-item p {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: var(--cor-texto-principal);
+            margin: 0;
+        }
+
+        /* --- IDEIA 1 (CSS Desafio da Memória) --- */
+        .review-queue-container {
+            border: 1px solid var(--cor-botao-principal-hover);
+            border-radius: 8px;
+            margin-bottom: 25px;
+            background-color: var(--cor-fundo);
+        }
+        .review-queue-container h2 {
+            font-size: 1.4em;
+            color: var(--cor-botao-principal);
+            padding: 15px 20px;
+            margin: 0;
+            border-bottom: 1px solid var(--cor-borda);
+        }
+        #reviewQueueItems {
+            padding: 10px 20px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .review-item {
+            border: 1px solid var(--cor-borda);
+            border-radius: 6px;
+            padding: 15px;
+            background-color: var(--cor-container);
+            transition: all 0.3s ease;
+        }
+        .review-item h4 {
+            font-size: 1.1em;
+            color: var(--cor-texto-secundario);
+            margin: 0 0 10px 0;
+        }
+        /* Nova área do desafio */
+        .review-desafio-area label {
+             display:block;font-size:0.9em;color:var(--cor-texto-fraco);margin-bottom:5px;
+        }
+        .review-desafio-area textarea {
+            width:100%;min-height:60px;padding:10px;border:1px solid var(--cor-borda);border-radius:6px;background-color:var(--cor-fundo);color:var(--cor-texto-principal);font-family:inherit;font-size:1em;resize:vertical;
+        }
+        .review-btn-revelar {
+            padding: 8px 15px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #fff;
+            background-color: var(--cor-botao-aviso);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+        .review-btn-revelar:hover { background-color: var(--cor-botao-aviso-hover); }
+
+        /* Área de comparação (revelada) */
+        .review-revelar-area {
+            margin-top: 15px;
+            border-top: 1px dashed var(--cor-borda);
+            padding-top: 15px;
+        }
+        .review-revelar-area p {
+            font-size: 0.95em;
+            color: var(--cor-texto-principal);
+            background-color: var(--cor-fundo);
+            border: 1px dashed var(--cor-borda);
+            padding: 10px;
+            border-radius: 4px;
+            margin: 0 0 15px 0;
+            white-space: pre-wrap; /* Preserva quebras de linha da anotação */
+        }
+        .review-revelar-area p strong { color: var(--cor-texto-secundario); }
+
+        .review-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .review-actions button {
+            padding: 8px 15px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .review-btn-lembrei { background-color: var(--cor-botao-sucesso); }
+        .review-btn-lembrei:hover { background-color: var(--cor-botao-sucesso-hover); }
+        .review-btn-nao-lembrei { background-color: var(--cor-botao-erro); }
+        .review-btn-nao-lembrei:hover { background-color: var(--cor-botao-erro-hover); }
+        
+        /* Helper para esconder elementos */
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
     <div class="container">
-         <div class="header"><h1>Plano de Estudos</h1><button id="theme-toggle" title="Mudar tema">☀️</button></div>
-         <div class="input-area"><input type="text" id="playlistUrl" placeholder="Cole o link da playlist aqui..." size="50"><button id="carregarPlaylist">Carregar</button></div>
-         <div class="settings-area"><div class="setting-item"><label for="esforcoPorDia">Objetivo de Esforço:</label><input type="number" id="esforcoPorDia" value="10" min="1"></div><button id="resetProgress" title="Limpar todo o progresso salvo">Limpar Progresso</button></div>
-        <div id="videosContainer"></div>
+         <div class="header">
+            <h1>Plano de Estudos</h1>
+            <button id="theme-toggle" title="Mudar tema">☀️</button>
+         </div>
+
+         <div id="pomodoro-container">
+            <span id="pomodoro-display">25:00</span>
+            <button id="pomodoro-start" class="pomodoro-btn">▶ Iniciar Foco</button>
+            <button id="pomodoro-reset" class="pomodoro-btn">🔁 Resetar</button>
+         </div>
+         <div class="input-area">
+            <input type="text" id="playlistUrl" placeholder="Cole o link da playlist aqui..." size="50">
+            <button id="carregarPlaylist">Carregar</button>
+         </div>
+         <div class="settings-area">
+            <div class="setting-item">
+                <label for="esforcoPorDia">Objetivo de Esforço:</label>
+                <input type="number" id="esforcoPorDia" value="10" min="1">
+            </div>
+            <button id="resetProgress" title="Limpar todo o progresso salvo">Limpar Progresso</button>
+         </div>
+        
+         <div id="stats-panel">
+            <div class="stat-item">
+                <h3>Progresso</h3>
+                <p id="stat-percentual">0%</p>
+            </div>
+            <div class="stat-item">
+                <h3>Vídeos Concluídos</h3>
+                <p id="stat-concluidos">0 / 0</p>
+            </div>
+            <div class="stat-item">
+                <h3>Esforço Acumulado</h3>
+                <p id="stat-esforco">0 pts</p>
+            </div>
+         </div>
+         <div id="reviewQueueContainer" class="review-queue-container" style="display: none;">
+            <h2>Desafio da Memória (Revisão de Hoje)</h2>
+            <div id="reviewQueueItems">
+                </div>
+         </div>
+         <div id="videosContainer"></div>
     </div>
 
     <div id="toast-message"></div>
 
-    <!-- Carrega o main.js no final, após o DOM estar presente -->
     <script src="main.js"></script>
 
 </body>
