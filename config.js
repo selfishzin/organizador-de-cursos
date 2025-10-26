@@ -10,6 +10,16 @@ const CHAVE_API = 'AIzaSyCDVZQLcB8HyxHnRAYYEJnCfK9zytL8wbs';
 // Se quiser o campo em branco, deixe as aspas vazias: ""
 const PLAYLIST_PADRAO_URL = 'https://www.youtube.com/playlist?list=PL62G310vn6nFIsOCC0H-C2infYgwm8SWW';
 
+const firebaseConfig = {
+  apiKey: "AIzaSyDJwY4TrxR3uOvimNCmJI775BpmKtpN3U8", // SUA CONFIG AQUI
+  authDomain: "meu-app-estudos.firebaseapp.com",
+  projectId: "meu-app-estudos",
+  storageBucket: "meu-app-estudos.firebaseapp.com",
+  messagingSenderId: "256586792349",
+  appId: "1:256586792349:web:d8bfce77ca3500d7e5c374",
+  measurementId: "G-QEQY12RG2M"
+};
+
 const CONFIG_ESFORCO = {
     
     ORCAMENTO_DIARIO_PADRAO: 10,

@@ -7,7 +7,7 @@
     <meta http-equiv="Content-Security-Policy"
           content="connect-src 'self' https://www.googleapis.com https://firestore.googleapis.com https://www.gstatic.com http://127.0.0.1:* ws://127.0.0.1:*;
                    frame-src https://www.youtube.com;
-                   script-src 'self' https://www.gstatic.com https://www.youtube.com https://s.ytimg.com 'sha256-gMRwG3EkVQ8o3wNi4PB8naGXcxUxKOGHBCqiEKe9CAw=' 'sha256-vvt4KWwuNr51XfE5m+hzeNEGhiOfZzG97ccfqGsPwvE=' 'sha256-Z+XslJnPdPAVR08rULoJd9FNOo/25fH8KjKHrytd8Dw=' 'sha256-/ic8cVh7M9dvaS4Z3RVZxAMpwHCHm5Jak68PKDT250U=';">
+                   script-src 'self' https://www.gstatic.com https://www.youtube.com https://s.ytimg.com;">
 
     <script src="config.js"></script>
 
@@ -19,20 +19,13 @@
 
     <style>
         /* ... (Todo o seu CSS :root, [data-theme], etc... SEM ALTERAÇÕES) ... */
-        :root {
-            --cor-fundo: #f0f2f5; --cor-container: #ffffff; --cor-texto-principal: #2c3e50; --cor-texto-secundario: #444; --cor-texto-fraco: #777; --cor-borda: #ddd; --cor-header-dia: #f9f9f9; --cor-header-dia-hover: #f1f1f1; --cor-placeholder: #e9e9e9; --cor-placeholder-borda: #ccc; --cor-sombra: rgba(0, 0, 0, 0.05); --cor-botao-principal: #007bff; --cor-botao-principal-hover: #0056b3;
-        }
-        [data-theme="dark"] {
-            --cor-fundo: #121212; --cor-container: #1e1e1e; --cor-texto-principal: #e0e0e0; --cor-texto-secundario: #c5c5c5; --cor-texto-fraco: #888; --cor-borda: #444; --cor-header-dia: #2a2a2a; --cor-header-dia-hover: #333; --cor-placeholder: #333; --cor-placeholder-borda: #555; --cor-sombra: rgba(255, 255, 255, 0.05);
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; } html { scroll-behavior: smooth; } body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; background-color: var(--cor-fundo); color: var(--cor-texto-principal); padding: 20px; transition: background-color 0.2s, color 0.2s; } .container { max-width: 900px; margin: 0 auto; background-color: var(--cor-container); border-radius: 8px; padding: 25px 30px; box-shadow: 0 4px 12px var(--cor-sombra); transition: background-color 0.2s; } .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; } h1 { text-align: center; color: var(--cor-texto-principal); margin: 0; flex-grow: 1; } #theme-toggle { font-size: 1.5rem; background: none; border: none; color: var(--cor-texto-principal); cursor: pointer; padding: 5px; } .input-area { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; } #playlistUrl { flex-grow: 1; min-width: 300px; padding: 12px; border: 1px solid var(--cor-borda); background-color: var(--cor-fundo); color: var(--cor-texto-principal); border-radius: 6px; font-size: 16px; } #carregarPlaylist { padding: 0 20px; font-size: 16px; font-weight: bold; color: #fff; background-color: var(--cor-botao-principal); border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; } #carregarPlaylist:hover { background-color: var(--cor-botao-principal-hover); } .settings-area { display: flex; gap: 20px; margin-bottom: 30px; align-items: center; } .setting-item { display: flex; align-items: center; gap: 8px; } .setting-item label { font-size: 0.9em; color: var(--cor-texto-fraco); } #esforcoPorDia { width: 70px; padding: 8px; font-size: 1em; border: 1px solid var(--cor-borda); background-color: var(--cor-fundo); color: var(--cor-texto-principal); border-radius: 6px; text-align: center; } #resetProgress { font-size: 0.9em; color: var(--cor-botao-principal); background: none; border: none; cursor: pointer; padding: 5px; } #resetProgress:hover { text-decoration: underline; } .loading-message { text-align: center; font-size: 1.1em; color: var(--cor-texto-fraco); padding: 30px 0; } .dia { border: 1px solid var(--cor-borda); border-radius: 8px; margin-bottom: 15px; overflow: hidden; transition: all 0.3s ease; } .dia:hover { box-shadow: 0 2px 8px var(--cor-sombra); } .dia-destacado { border-color: var(--cor-botao-principal); box-shadow: 0 0 12px rgba(0,123,255,0.5); } .dia-header { background-color: var(--cor-header-dia); padding: 15px 20px; cursor: pointer; border-bottom: 1px solid var(--cor-borda); transition: background-color 0.2s; } .dia-header:hover { background-color: var(--cor-header-dia-hover); } .dia-header h2 { margin: 0; color: var(--cor-texto-principal); font-size: 1.3em; display: flex; align-items: center; justify-content: space-between; } .dia-header h2 .frase-esforco { font-size: 0.8em; font-style: italic; color: var(--cor-texto-fraco); margin-left: 10px; } .dia-conteudo { display: block; max-height: 0; overflow: hidden; padding-left: 20px; padding-right: 20px; padding-top: 0; padding-bottom: 0; transition: max-height 0.4s ease-out, padding-top 0.4s ease-out, padding-bottom 0.4s ease-out; } .video-item { margin-bottom: 25px; } .video-title-wrapper { display: flex; align-items: center; gap: 10px; } .video-title-wrapper input[type="checkbox"] { width: 1.3em; height: 1.3em; cursor: pointer; } .video-item h3 { margin: 0; font-size: 1.1em; color: var(--cor-texto-secundario); display: flex; align-items: center; gap: 8px; } iframe { width: 100%; max-width: 100%; height: auto; aspect-ratio: 16 / 9; border: none; border-radius: 8px; margin-top: 10px; } .video-placeholder { width: 100%; aspect-ratio: 16 / 9; background-color: var(--cor-placeholder); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--cor-texto-fraco); font-style: italic; margin-top: 10px; border: 1px dashed var(--cor-placeholder-borda); } .completion-emoji { font-size: 0.9em; margin-left: 10px; transform: scale(0); transition: transform 0.2s ease-out; } .completion-emoji.completed { transform: scale(1); } .esforco-badge { font-size: 0.8em; font-weight: bold; color: var(--cor-botao-principal); background-color: var(--cor-fundo); padding: 2px 8px; border-radius: 10px; border: 1px solid var(--cor-borda); } #toast-message { position: fixed; top: 20px; left: 50%; transform: translate(-50%, -100px); background-color: var(--cor-botao-principal); color: white; padding: 12px 25px; border-radius: 25px; font-size: 1.1em; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); opacity: 0; transition: transform 0.4s ease-out, opacity 0.4s ease-out; z-index: 1000; max-width: 90%; text-align: center; } #toast-message.show { transform: translate(-50%, 0); opacity: 1; } #toast-message.toast-warning { background-color: #f39c12; color: #000; } .anotacao-area { margin-top: 10px; } .anotacao-area label { display: block; font-size: 0.9em; color: var(--cor-texto-fraco); margin-bottom: 5px; } .anotacao-area textarea { width: 100%; min-height: 60px; padding: 10px; border: 1px solid var(--cor-borda); border-radius: 6px; background-color: var(--cor-fundo); color: var(--cor-texto-principal); font-family: inherit; font-size: 1em; resize: vertical; transition: border-color 0.2s; } .anotacao-area textarea:invalid { border-color: #e74c3c; animation: shake 0.5s ease-in-out; } @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-
+        :root{--cor-fundo:#f0f2f5;--cor-container:#ffffff;--cor-texto-principal:#2c3e50;--cor-texto-secundario:#444;--cor-texto-fraco:#777;--cor-borda:#ddd;--cor-header-dia:#f9f9f9;--cor-header-dia-hover:#f1f1f1;--cor-placeholder:#e9e9e9;--cor-placeholder-borda:#ccc;--cor-sombra:rgba(0, 0, 0, 0.05);--cor-botao-principal:#007bff;--cor-botao-principal-hover:#0056b3;}[data-theme="dark"]{--cor-fundo:#121212;--cor-container:#1e1e1e;--cor-texto-principal:#e0e0e0;--cor-texto-secundario:#c5c5c5;--cor-texto-fraco:#888;--cor-borda:#444;--cor-header-dia:#2a2a2a;--cor-header-dia-hover:#333;--cor-placeholder:#333;--cor-placeholder-borda:#555;--cor-sombra:rgba(255, 255, 255, 0.05);}*{box-sizing:border-box;margin:0;padding:0;}html{scroll-behavior:smooth;}body{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;line-height:1.6;background-color:var(--cor-fundo);color:var(--cor-texto-principal);padding:20px;transition:background-color 0.2s, color 0.2s;}.container{max-width:900px;margin:0 auto;background-color:var(--cor-container);border-radius:8px;padding:25px 30px;box-shadow:0 4px 12px var(--cor-sombra);transition:background-color 0.2s;}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;}h1{text-align:center;color:var(--cor-texto-principal);margin:0;flex-grow:1;}#theme-toggle{font-size:1.5rem;background:none;border:none;color:var(--cor-texto-principal);cursor:pointer;padding:5px;}.input-area{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px;}#playlistUrl{flex-grow:1;min-width:300px;padding:12px;border:1px solid var(--cor-borda);background-color:var(--cor-fundo);color:var(--cor-texto-principal);border-radius:6px;font-size:16px;}#carregarPlaylist{padding:0 20px;font-size:16px;font-weight:bold;color:#fff;background-color:var(--cor-botao-principal);border:none;border-radius:6px;cursor:pointer;transition:background-color 0.2s;}#carregarPlaylist:hover{background-color:var(--cor-botao-principal-hover);}.settings-area{display:flex;gap:20px;margin-bottom:30px;align-items:center;}.setting-item{display:flex;align-items:center;gap:8px;}.setting-item label{font-size:0.9em;color:var(--cor-texto-fraco);}#esforcoPorDia{width:70px;padding:8px;font-size:1em;border:1px solid var(--cor-borda);background-color:var(--cor-fundo);color:var(--cor-texto-principal);border-radius:6px;text-align:center;}#resetProgress{font-size:0.9em;color:var(--cor-botao-principal);background:none;border:none;cursor:pointer;padding:5px;}#resetProgress:hover{text-decoration:underline;}.loading-message{text-align:center;font-size:1.1em;color:var(--cor-texto-fraco);padding:30px 0;}.dia{border:1px solid var(--cor-borda);border-radius:8px;margin-bottom:15px;overflow:hidden;transition:all 0.3s ease;}.dia:hover{box-shadow:0 2px 8px var(--cor-sombra);}.dia-destacado{border-color:var(--cor-botao-principal);box-shadow:0 0 12px rgba(0,123,255,0.5);}.dia-header{background-color:var(--cor-header-dia);padding:15px 20px;cursor:pointer;border-bottom:1px solid var(--cor-borda);transition:background-color 0.2s;}.dia-header:hover{background-color:var(--cor-header-dia-hover);}.dia-header h2{margin:0;color:var(--cor-texto-principal);font-size:1.3em;display:flex;align-items:center;justify-content:space-between;}.dia-header h2 .frase-esforco{font-size:0.8em;font-style:italic;color:var(--cor-texto-fraco);margin-left:10px;}.dia-conteudo{display:block;max-height:0;overflow:hidden;padding-left:20px;padding-right:20px;padding-top:0;padding-bottom:0;transition:max-height 0.4s ease-out, padding-top 0.4s ease-out, padding-bottom 0.4s ease-out;}.video-item{margin-bottom:25px;}.video-title-wrapper{display:flex;align-items:center;gap:10px;}.video-title-wrapper input[type="checkbox"]{width:1.3em;height:1.3em;cursor:pointer;}.video-item h3{margin:0;font-size:1.1em;color:var(--cor-texto-secundario);display:flex;align-items:center;gap:8px;}iframe{width:100%;max-width:100%;height:auto;aspect-ratio:16 / 9;border:none;border-radius:8px;margin-top:10px;}.video-placeholder{width:100%;aspect-ratio:16 / 9;background-color:var(--cor-placeholder);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--cor-texto-fraco);font-style:italic;margin-top:10px;border:1px dashed var(--cor-placeholder-borda);}.completion-emoji{font-size:0.9em;margin-left:10px;transform:scale(0);transition:transform 0.2s ease-out;}.completion-emoji.completed{transform:scale(1);}.esforco-badge{font-size:0.8em;font-weight:bold;color:var(--cor-botao-principal);background-color:var(--cor-fundo);padding:2px 8px;border-radius:10px;border:1px solid var(--cor-borda);}#toast-message{position:fixed;top:20px;left:50%;transform:translate(-50%, -100px);background-color:var(--cor-botao-principal);color:white;padding:12px 25px;border-radius:25px;font-size:1.1em;font-weight:bold;box-shadow:0 4px 10px rgba(0,0,0,0.2);opacity:0;transition:transform 0.4s ease-out, opacity 0.4s ease-out;z-index:1000;max-width:90%;text-align:center;}#toast-message.show{transform:translate(-50%, 0);opacity:1;}#toast-message.toast-warning{background-color:#f39c12;color:#000;}.anotacao-area{margin-top:10px;}.anotacao-area label{display:block;font-size:0.9em;color:var(--cor-texto-fraco);margin-bottom:5px;}.anotacao-area textarea{width:100%;min-height:60px;padding:10px;border:1px solid var(--cor-borda);border-radius:6px;background-color:var(--cor-fundo);color:var(--cor-texto-principal);font-family:inherit;font-size:1em;resize:vertical;transition:border-color 0.2s;}.anotacao-area textarea:invalid{border-color:#e74c3c;animation:shake 0.5s ease-in-out;}@keyframes shake{0%, 100%{transform:translateX(0);}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="header"><h1>Plano de Estudos</h1><button id="theme-toggle" title="Mudar tema">☀️</button></div>
+         <div class="header"><h1>Plano de Estudos</h1><button id="theme-toggle" title="Mudar tema">☀️</button></div>
          <div class="input-area"><input type="text" id="playlistUrl" placeholder="Cole o link da playlist aqui..." size="50"><button id="carregarPlaylist">Carregar</button></div>
          <div class="settings-area"><div class="setting-item"><label for="esforcoPorDia">Objetivo de Esforço:</label><input type="number" id="esforcoPorDia" value="10" min="1"></div><button id="resetProgress" title="Limpar todo o progresso salvo">Limpar Progresso</button></div>
         <div id="videosContainer"></div>
@@ -40,141 +33,7 @@
 
     <div id="toast-message"></div>
 
-
-    <script>
-        // --- Referências ao DOM ---
-        const themeToggle = document.getElementById('theme-toggle'); /*...*/
-        const playlistUrlInput = document.getElementById('playlistUrl');
-        const carregarBtn = document.getElementById('carregarPlaylist');
-        const esforcoPorDiaInput = document.getElementById('esforcoPorDia');
-        const videosContainer = document.getElementById('videosContainer');
-        const resetProgressBtn = document.getElementById('resetProgress');
-        let currentPlaylistId = null;
-        let videoProgress = {};
-
-        // --- Configuração Firebase ---
-        const firebaseConfig = {
-          apiKey: "AIzaSyDJwY4TrxR3uOvimNCmJI775BpmKtpN3U8",
-          authDomain: "meu-app-estudos.firebaseapp.com",
-          projectId: "meu-app-estudos",
-          storageBucket: "meu-app-estudos.firebaseapp.com",
-          messagingSenderId: "256586792349",
-          appId: "1:256586792349:web:d8bfce77ca3500d7e5c374",
-          measurementId: "G-QEQY12RG2M"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-
-        // --- (Lógica do Tema... sem alteração) ---
-        function setTheme(theme) { /* ... */ }
-        themeToggle.addEventListener('click', () => { /* ... */ });
-
-        // --- (Lógica de Progresso com Firestore... sem alteração) ---
-        async function loadProgress(playlistId) { /* ... */ }
-        async function saveProgress(playlistId, videoId, isChecked, anotacao = null) { /* ... */ }
-        resetProgressBtn.addEventListener('click', async () => { /* ... */ });
-
-        // --- (Função checkDayCompletion... sem alteração) ---
-        function checkDayCompletion(diaConteudoElement) { /* ... */ }
-
-        // --- (Funções showToast, openDay, closeDay, getFraseDeEsforco, logarConclusaoDeDia, autoOpen... sem alteração) ---
-        function showToast(message, type = 'info') { /* ... */ }
-        function openDay(diaConteudo) { /* ... */ }
-        function closeDay(diaConteudo) { /* ... */ }
-        function getFraseDeEsforco(pontos) { /* ... */ }
-        function logarConclusaoDeDia() { /* ... */ }
-        function autoOpenAndHighlightNextDay() { /* ... */ }
-
-        // --- (Lógica de Carregamento da Página... sem alteração) ---
-        document.addEventListener('DOMContentLoaded', () => { /* ... */ });
-
-        // --- (Lógica handleLoadPlaylist... sem alteração) ---
-        carregarBtn.addEventListener('click', handleLoadPlaylist);
-        async function handleLoadPlaylist() { /* ... */ }
-
-        // --- (Funções de Cálculo de Esforço... sem alteração) ---
-        function parseDuration(durationString) { /* ... */ }
-        function calcularEsforco(title, durationString) { /* ... */ }
-
-        // --- Função Principal carregarVideosDaPlaylist ---
-        async function carregarVideosDaPlaylist(playlistId) {
-            // ... (Verifica API Key, loadProgress, Chamadas API YouTube, Cálculo Esforço ... sem alteração) ...
-             if (typeof CHAVE_API === 'undefined' || CHAVE_API === 'SUA_CHAVE_DE_API_AQUI') { alert('ERRO: CHAVE_API não encontrada!'); return; }
-            const API_KEY = CHAVE_API;
-            videosContainer.innerHTML = '<p class="loading-message">Carregando progresso...</p>';
-            await loadProgress(playlistId);
-            videosContainer.innerHTML = '<p class="loading-message">Carregando vídeos...</p>';
-            let videosInfo = []; let videoIds = []; let nextPageToken = '';
-            try {
-                // ETAPA 1: Pegar IDs e Títulos
-                do {
-                    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${API_KEY}&pageToken=${nextPageToken}`;
-                    const response = await fetch(url);
-                    const data = await response.json();
-                    if (data.error) throw new Error(`Erro API Playlist: ${data.error.message}`);
-                    data.items.forEach(item => {
-                        const title = item.snippet.title;
-                        const videoId = item.snippet.resourceId.videoId;
-                        if (title !== "Private video" && title !== "Deleted video") { videosInfo.push({ videoId, title }); videoIds.push(videoId); }
-                    });
-                    nextPageToken = data.nextPageToken || '';
-                } while (nextPageToken);
-
-                videosContainer.innerHTML = '<p class="loading-message">Calculando esforço...</p>';
-                // ETAPA 2: Pegar Durações
-                let allVideosCompletos = []; const durationMap = {};
-                 if (videoIds.length > 0) { // Só busca durações se houver vídeos
-                    for (let i = 0; i < videoIds.length; i += 50) {
-                         const batchIds = videoIds.slice(i, i + 50).join(',');
-                         const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${batchIds}&key=${API_KEY}`;
-                         const response = await fetch(url);
-                         const data = await response.json();
-                         if (data.error) throw new Error(`Erro API Duração: ${data.error.message}`);
-                         data.items.forEach(item => { durationMap[item.id] = item.contentDetails.duration; });
-                    }
-                 }
-                // ETAPA 3: Combinar e Calcular Esforço
-                allVideosCompletos = videosInfo.map(video => {
-                    const duration = durationMap[video.videoId] || 'PT0S';
-                    const esforco = calcularEsforco(video.title, duration);
-                    const anotacaoSalva = (videoProgress[video.videoId] && typeof videoProgress[video.videoId] === 'string') ? videoProgress[video.videoId] : "";
-                    return { ...video, duration, esforco, anotacaoSalva };
-                });
-
-                videosContainer.innerHTML = '';
-                if (allVideosCompletos.length === 0) { videosContainer.innerHTML = '<p class="loading-message">Nenhum vídeo encontrado.</p>'; return; }
-
-                // ... (ETAPA 4: Montar os Dias HTML com textarea e badge... sem alteração) ...
-                const orcamentoDiario = parseInt(esforcoPorDiaInput.value) || CONFIG_ESFORCO.ORCAMENTO_DIARIO_PADRAO;
-                let diaAtual = 1; let esforcoNoDia = 0; let diaDiv, diaHeader, diaConteudo;
-                allVideosCompletos.forEach((video) => { /* ... cria HTML dos dias e vídeos ... */ });
-
-                // ... (ETAPA 5: Adicionar frases... sem alteração) ...
-                document.querySelectorAll('.dia').forEach(diaEl => { /* ... adiciona frase ... */ });
-
-            } catch (error) { console.error("Erro detalhado:", error); videosContainer.innerHTML = `<p style="color: red;">Erro ao carregar dados. Verifique console (F12).</p>`; return; }
-
-            // --- ETAPA 6: Adicionar Lógica de Eventos ---
-            document.querySelectorAll('.dia-conteudo').forEach(checkDayCompletion);
-            autoOpenAndHighlightNextDay();
-
-            // ... (Lógica de clique no DIA... sem alteração) ...
-            document.querySelectorAll('.dia-header').forEach(header => { /* ... */ });
-
-            // --- Lógica do Checkbox (O "Porteiro" Inteligente com saveProgress assíncrono) ---
-            document.querySelectorAll('.video-title-wrapper input[type="checkbox"]').forEach(checkbox => { /* ... */ });
-
-            // --- Salvar anotação automaticamente (com saveProgress assíncrono) ---
-             document.querySelectorAll('.anotacao-area textarea').forEach(textarea => { /* ... */ });
-        }
-
-        // --- (Função onPlayerStateChange... sem alteração) ---
-        function onPlayerStateChange(event) { /* ... */ }
-
-        // --- Tratamento de erro global ---
-        window.addEventListener('unhandledrejection', event => { /* ... */ });
-
-    </script>
+    <script src="main.js"></script>
 
 </body>
 </html>
