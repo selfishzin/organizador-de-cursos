@@ -14,6 +14,7 @@ let pomodoroTimer = null; // (em segundos)
 let pomodoroInterval = null;
 let isPomodoroRunning = false;
 let isPausa = false;
+let activeYoutubePlayer = null; // Guarda o player de vídeo ativo
 
 // --- Referências ao DOM (declaradas aqui, atribuídas no DOMContentLoaded) ---
 let themeToggle = null;
@@ -34,7 +35,7 @@ let statConcluidos = null;
 let statEsforco = null;
 
 
-// --- TENTA INICIALIZAR FIREBASE IMEDIATAMENTE ---
+// --- TENTA INICIALIZAR FIREBASE IMEDIATAMENTE (NÃO ALTERADO) ---
 console.log("Tentando inicializar Firebase (topo do main.js)...");
 try {
     if (typeof firebase === 'undefined') { throw new Error("Objeto Firebase global não encontrado! SDK não carregou?"); }
@@ -164,10 +165,17 @@ function openDay(diaConteudo) {
             placeholders.forEach(placeholder => { 
                 const videoId = placeholder.dataset.videoId; 
                 if (typeof YT !== 'undefined' && typeof YT.Player !== 'undefined') { 
-                    new YT.Player(placeholder, { 
+                    // Cria o player e armazena a referência para o player ativo
+                    const player = new YT.Player(placeholder, { 
                         videoId: videoId, 
                         playerVars: { 'origin': window.location.origin }, 
-                        events: { 'onStateChange': onPlayerStateChange } 
+                        events: { 
+                            'onStateChange': onPlayerStateChange,
+                            'onReady': (event) => {
+                                // Assume que o primeiro player pronto no dia aberto é o ativo
+                                activeYoutubePlayer = event.target;
+                            }
+                        } 
                     }); 
                 } else { 
                     console.error("API YouTube Player não pronta."); 
@@ -175,7 +183,16 @@ function openDay(diaConteudo) {
                 } 
             }); 
             diaConteudo.dataset.loaded = 'true'; 
-        } 
+        } else {
+            // Se o dia já estava carregado, mas foi reaberto, tenta encontrar o player novamente
+            const iframe = diaConteudo.querySelector('iframe');
+            if (iframe && iframe.id) {
+                // Tenta obter a referência do player API
+                activeYoutubePlayer = YT.get(iframe.id); 
+            }
+        }
+        
+        // Lógica de abertura do acordeão (maxHeight)
         const currentTransition = diaConteudo.style.transition; 
         diaConteudo.style.transition = ''; 
         diaConteudo.style.maxHeight = 'none'; 
@@ -186,11 +203,18 @@ function openDay(diaConteudo) {
         diaConteudo.style.paddingTop = '20px'; 
         diaConteudo.style.paddingBottom = '20px'; 
         diaConteudo.style.maxHeight = scrollHeight + "px"; 
+
     } catch(e){ console.error("Erro openDay:",e);}
 }
 
 function closeDay(diaConteudo) { 
     try{ 
+        // Pausa qualquer player ativo ao fechar o dia
+        if (activeYoutubePlayer && typeof activeYoutubePlayer.pauseVideo === 'function') {
+            activeYoutubePlayer.pauseVideo();
+        }
+        activeYoutubePlayer = null; // Limpa o player ativo
+
         if (!diaConteudo) return; 
         diaConteudo.style.paddingTop = '0'; 
         diaConteudo.style.paddingBottom = '0'; 
@@ -240,9 +264,9 @@ function autoOpenAndHighlightNextDay() {
                 diaElement.classList.add('dia-destacado', 'day-next-animation');
                 openDay(diaConteudo); 
                 
-                // --- CORREÇÃO: Rola para o TOPO (block: 'start') com um pequeno atraso para a animação
+                // --- CORREÇÃO DE ROLAGEM: Rola para o TOPO (block: 'start') com um pequeno atraso para a animação
                 setTimeout(() => { 
-                    // Certifica-se de rolar para o topo do cabeçalho
+                    // Rola para o topo do cabeçalho
                     if(diaHeader) diaHeader.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
                 }, 300);
 
@@ -952,6 +976,26 @@ async function handleReviewAction(e) {
 }
 // --- FIM IDEIA 1 ---
 
+// --- FUNÇÃO AUXILIAR PARA ALARME (AGORA USANDO ELEMENTO <audio>) ---
+function playAlarm() {
+    try {
+        if (typeof ALARME_URL !== 'undefined' && ALARME_URL) {
+            const audio = new Audio(ALARME_URL);
+            audio.play().catch(e => {
+                 console.warn("Falha ao tentar tocar o som (pode ser bloqueio do navegador):", e);
+                 showToast("TEMPO ESGOTADO! PAUSA AGORA.", 'warning');
+            });
+        } else {
+            // Fallback se ALARME_URL não estiver configurado
+            showToast("TEMPO ESGOTADO! PAUSA AGORA.", 'warning');
+        }
+    } catch (e) {
+        console.error("Erro na função playAlarm:", e);
+        showToast("TEMPO ESGOTADO! PAUSA AGORA.", 'warning');
+    }
+}
+// --- FIM FUNÇÃO AUXILIAR ---
+
 
 // --- IDEIA 2 (Funções do Modo Foco) ---
 function startPomodoro() {
@@ -987,6 +1031,13 @@ function startPomodoro() {
         if (pomodoroTimer <= 0) {
             stopPomodoro(); 
             
+            // --- AÇÃO NO TÉRMINO ---
+            playAlarm(); // Toca o alarme personalizado
+            if (activeYoutubePlayer && typeof activeYoutubePlayer.pauseVideo === 'function') {
+                activeYoutubePlayer.pauseVideo(); // Pausa o vídeo!
+            }
+            // --- FIM AÇÃO NO TÉRMINO ---
+
             if (!isPausa) {
                 isPausa = true;
                 pomodoroTimer = null; 
@@ -994,6 +1045,7 @@ function startPomodoro() {
                 startPomodoro(); 
             } else {
                 isPausa = false;
+                pomodoroTimer = null; // Garante que o timer inicie do zero na próxima sessão de foco
                 showToast("Pausa concluída! Pronto para mais uma sessão?", "info");
                 resetPomodoro(); 
             }
@@ -1026,6 +1078,12 @@ function updatePomodoroDisplay() {
 // --- Função onPlayerStateChange (Global) ---
 function onPlayerStateChange(event) { 
     try { 
+        // Atualiza a variável do player ativo globalmente
+        const diaConteudo = event.target.getIframe().parentElement.closest('.dia-conteudo');
+        if (diaConteudo && diaConteudo.style.maxHeight !== '0px') {
+            activeYoutubePlayer = event.target;
+        }
+
         if (event.data === YT.PlayerState.ENDED) { 
             const playerElement = event.target.getIframe();
             const videoId = playerElement.parentElement.dataset.videoId;
