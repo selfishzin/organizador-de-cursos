@@ -1,8 +1,10 @@
 // ===================================
 // ARQUIVO DE CONFIGURAÇÃO (config.js)
 // ===================================
-// Coloque sua chave de API aqui. Esta é a única vez que você precisará mexer nela.
-const CHAVE_API = 'AIzaSyCDVZQLcB8HyxHnRAYYEJnCfK9zytL8wbs';
+// Coloque sua chave de API aqui. Para segurança, remova chaves hardcoded e use
+// variáveis de ambiente ou um arquivo local não versionado (ex: .env).
+// Por enquanto deixamos em branco para evitar commitar segredos.
+const CHAVE_API = ""; // <INSIRA_SUA_CHAVE_AQUI>
 
 
 // (OPCIONAL) Coloque uma URL de playlist padrão aqui.
@@ -12,7 +14,9 @@ const PLAYLIST_PADRAO_URL = 'https://www.youtube.com/playlist?list=PL62G310vn6nF
 
 // --- CONFIGURAÇÃO DO FIREBASE (REVERTIDA) ---
 const firebaseConfig = {
-  apiKey: "AIzaSyDJwY4TrxR3uOvimNCmJI775BpmKtpN3U8", // SUA CONFIG AQUI (MANTIDA ORIGINALMENTE PARA NÃO CAUSAR ERRO)
+    // Removida chave hardcoded por segurança. Insira via variáveis de ambiente
+    // ou configuração local não versionada quando necessário.
+    apiKey: "", // <INSIRA_SUA_APIKEY_FIREBASE_AQUI>
   authDomain: "meu-app-estudos.firebaseapp.com",
   projectId: "meu-app-estudos",
   storageBucket: "meu-app-estudos.firebaseapp.com",
@@ -44,7 +48,7 @@ const CONFIG_APRENDIZADO = {
 
 // --- IDEIA 2 (Modo Foco) ---
 const CONFIG_POMODORO = {
-    DURACAO_SESSAO_MIN: 0.15, // 25 minutos de foco
+    DURACAO_SESSAO_MIN: 25, // 25 minutos de foco
     DURACAO_PAUSA_MIN: 5      // 5 minutos de pausa
 };
 
