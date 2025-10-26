@@ -1,5 +1,5 @@
 // ===================================
-// ARQUIVO main.js (com Pomodoro, Stats e Desafio da Memória)
+// ARQUIVO main.js (com Rolagem para o Topo Corrigida, Pomodoro Fixo e Animações)
 // ===================================
 
 // --- Variáveis Globais ---
@@ -155,6 +155,10 @@ function showToast(message, type = 'info') {
 function openDay(diaConteudo) { 
     try{ 
         if (!diaConteudo) return; 
+        // Remove a classe de animação de entrada se estiver presente
+        const diaElement = diaConteudo.closest('.dia');
+        if(diaElement) diaElement.classList.remove('day-next-animation');
+
         if (!diaConteudo.dataset.loaded) { 
             const placeholders = diaConteudo.querySelectorAll('.video-placeholder'); 
             placeholders.forEach(placeholder => { 
@@ -232,16 +236,42 @@ function autoOpenAndHighlightNextDay() {
             if (!diaHeader || !diaConteudo) continue; 
             const emojiSpan = diaHeader.querySelector('.completion-emoji'); 
             if (!emojiSpan || !emojiSpan.classList.contains('completed')) { 
-                diaElement.classList.add('dia-destacado'); 
+                // Aplica a animação de entrada
+                diaElement.classList.add('dia-destacado', 'day-next-animation');
                 openDay(diaConteudo); 
+                
+                // --- CORREÇÃO: Rola para o TOPO (block: 'start') com um pequeno atraso para a animação
                 setTimeout(() => { 
-                    if(diaHeader) diaHeader.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
-                }, 450); 
-                break; 
+                    // Certifica-se de rolar para o topo do cabeçalho
+                    if(diaHeader) diaHeader.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
+                }, 300);
+
+                return true; // Retorna true assim que encontra e abre o dia
             } 
         } 
-    } catch(e){ console.error("Erro autoOpen:",e);}
+        return false; // Retorna false se todos os dias estiverem completos
+    } catch(e){ console.error("Erro autoOpen:",e); return false;}
 }
+
+// --- NOVA FUNÇÃO DE TRANSIÇÃO (SMOOTH) ---
+function smoothDayTransition(diaElementConcluido) {
+    // 1. Aplica animação de saída no dia concluído
+    // Fecha o conteúdo antes de iniciar a animação de desaparecimento
+    const diaConteudo = diaElementConcluido.querySelector('.dia-conteudo');
+    if (diaConteudo) closeDay(diaConteudo);
+
+    // Adiciona a classe de animação de saída
+    diaElementConcluido.classList.add('day-complete-animation');
+
+    // 2. Define o tempo para o fade-out e o atraso para a próxima ação
+    const totalDelay = 700; 
+
+    setTimeout(() => {
+        // 3. Abre o próximo dia com animação de entrada
+        autoOpenAndHighlightNextDay();
+    }, totalDelay);
+}
+// --- FIM NOVA FUNÇÃO ---
 
 // --- Lógica de Carregamento da Página ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -394,7 +424,6 @@ function parseDuration(durationString) {
 
 function calcularEsforco(title, durationString) {
     try{
-        // console.log(`[calcularEsforco] Título: "${title?.substring(0,30)}...", Duração: ${durationString}`);
         const config = (typeof CONFIG_ESFORCO !== 'undefined') ? CONFIG_ESFORCO : { PONTOS_POR_MINUTO: 0.5, PONTUACAO_MINIMA: 1, MODIFICADORES_TITULO: { FACIL:{palavras:[], modificador:0}, DIFICIL:{palavras:[], modificador:0} } };
         const { PONTOS_POR_MINUTO, PONTUACAO_MINIMA, MODIFICADORES_TITULO } = config;
         const totalMinutes = parseDuration(durationString);
@@ -404,7 +433,6 @@ function calcularEsforco(title, durationString) {
              scoreBase = 0;
         }
         let scoreFinal = scoreBase;
-        // console.log(`   totalMinutes=${totalMinutes.toFixed(2)}, scoreBase=${scoreBase.toFixed(2)}`);
         const lowerTitle = (title || "").toLowerCase();
         let modificadorAplicado = 0;
         if (MODIFICADORES_TITULO?.FACIL?.palavras) { 
@@ -412,7 +440,6 @@ function calcularEsforco(title, durationString) {
                 if (lowerTitle.includes(word)) { 
                     scoreFinal += MODIFICADORES_TITULO.FACIL.modificador; 
                     modificadorAplicado = MODIFICADORES_TITULO.FACIL.modificador; 
-                    // console.log(`   -> Modificador FÁCIL (${word}): ${modificadorAplicado}`); 
                     break; 
                 } 
             } 
@@ -422,7 +449,6 @@ function calcularEsforco(title, durationString) {
                 if (lowerTitle.includes(word)) { 
                     scoreFinal += MODIFICADORES_TITULO.DIFICIL.modificador; 
                     modificadorAplicado = MODIFICADORES_TITULO.DIFICIL.modificador; 
-                    // console.log(`   -> Modificador DIFÍCIL (${word}): ${modificadorAplicado}`); 
                     break; 
                 } 
             } 
@@ -432,7 +458,6 @@ function calcularEsforco(title, durationString) {
              scoreFinal = scoreBase;
          }
         const resultado = Math.max(PONTUACAO_MINIMA, Math.round(scoreFinal || 0)); 
-        // console.log(`   Score Final (antes min): ${scoreFinal.toFixed(2)}, Resultado (após min ${PONTUACAO_MINIMA}): ${resultado}`);
         return resultado;
     } catch(e){ console.error("Erro calcularEsforco:",e); return 1;}
 }
@@ -652,6 +677,9 @@ async function carregarVideosDaPlaylist(playlistId) {
                 if (e.target.closest('a, button')) return; 
                 const diaConteudo = header.nextElementSibling;
                 if (diaConteudo) {
+                    // Remove animação de entrada de outros dias para evitar bugs visuais
+                    document.querySelectorAll('.dia').forEach(d => d.classList.remove('day-next-animation'));
+                    
                     if (parseFloat(diaConteudo.style.maxHeight) > 0) {
                         closeDay(diaConteudo);
                     } else {
@@ -695,14 +723,16 @@ async function carregarVideosDaPlaylist(playlistId) {
                 }
 
                 const anotacao = textarea ? textarea.value.trim() : "";
-                await saveProgress(currentPlaylistId, videoId, isChecked, anotacao); // saveProgress já atualiza os stats
+                await saveProgress(currentPlaylistId, videoId, isChecked, anotacao);
 
                 const diaConteudo = e.target.closest('.dia-conteudo');
                 if (diaConteudo) {
                     const diaConcluido = checkDayCompletion(diaConteudo);
                     
-                    // --- ATUALIZAÇÃO (Transição Suave) ---
+                    // --- LÓGICA DE TRANSIÇÃO SUAVE ---
                     if (diaConcluido && isChecked) {
+                         const diaElement = diaConteudo.closest('.dia');
+                         
                          const configA = (typeof CONFIG_APRENDIZADO !== 'undefined') ? CONFIG_APRENDIZADO : {}; 
                          const limiteDias = configA.LIMITE_DIAS_CONCLUIDOS || 2;
                          const msgAviso = configA.MENSAGEM_AVISO || "Muitos dias hoje! Que tal uma pausa?";
@@ -714,13 +744,16 @@ async function carregarVideosDaPlaylist(playlistId) {
                             showToast("Dia Concluído! Ótimo trabalho.", "info");
                          }
                          
-                         // Adiciona delay antes de fechar e rolar
-                         setTimeout(() => {
-                            closeDay(diaConteudo);
-                            autoOpenAndHighlightNextDay();
-                         }, 1500); // 1.5 segundos de delay
+                         // Chama a nova função de animação
+                         if(diaElement) {
+                             smoothDayTransition(diaElement);
+                         } else {
+                             // Fallback
+                             closeDay(diaConteudo);
+                             autoOpenAndHighlightNextDay();
+                         }
                     }
-                    // --- FIM DA ATUALIZAÇÃO ---
+                    // --- FIM DA LÓGICA DE TRANSIÇÃO ---
                 }
             }); 
         }); 
@@ -830,12 +863,14 @@ function processarFilaDeRevisao(videosInfo, progressoSalvo) {
                 <div class="review-item" data-video-id="${item.videoId}">
                     <h4>${item.title}</h4>
                     
+                    <!-- Área do Desafio (sempre visível) -->
                     <div class="review-desafio-area">
                         <label for="review-anotacao-${item.videoId}">O que você lembra sobre este vídeo?</label>
                         <textarea id="review-anotacao-${item.videoId}" rows="3" placeholder="Tente lembrar sem olhar..."></textarea>
                         <button class="review-btn-revelar" data-video-id="${item.videoId}">Comparar com Anotação</button>
                     </div>
 
+                    <!-- Área de Comparação (escondida) -->
                     <div class="review-revelar-area hidden">
                         <p><strong>Sua anotação original:</strong> "${item.anotacao}"</p>
                         <div class="review-actions">
@@ -921,7 +956,7 @@ async function handleReviewAction(e) {
 // --- IDEIA 2 (Funções do Modo Foco) ---
 function startPomodoro() {
     if (isPomodoroRunning) {
-        // Se está rodando, o botão vira "Pausar"
+        // Pausar
         stopPomodoro();
         if (isPausa) {
             pomodoroStartBtn.textContent = "▶ Continuar Pausa";
@@ -934,14 +969,12 @@ function startPomodoro() {
     isPomodoroRunning = true;
     
     if (!isPausa) {
-        // Se não estava em pausa, inicia (ou continua) sessão de foco
-        if (pomodoroTimer === null) { // Define o tempo se for a primeira vez
+        if (pomodoroTimer === null || pomodoroTimer === undefined) { 
              pomodoroTimer = (typeof CONFIG_POMODORO !== 'undefined' ? CONFIG_POMODORO.DURACAO_SESSAO_MIN : 25) * 60;
         }
         pomodoroStartBtn.textContent = "⏸ Pausar Foco";
     } else {
-        // Se estava em pausa, inicia (ou continua) a pausa
-         if (pomodoroTimer === null) { // Define o tempo se for a primeira vez
+         if (pomodoroTimer === null || pomodoroTimer === undefined) { 
             pomodoroTimer = (typeof CONFIG_POMODORO !== 'undefined' ? CONFIG_POMODORO.DURACAO_PAUSA_MIN : 5) * 60;
          }
         pomodoroStartBtn.textContent = "⏸ Pausar Pausa";
@@ -952,28 +985,25 @@ function startPomodoro() {
         updatePomodoroDisplay();
 
         if (pomodoroTimer <= 0) {
-            stopPomodoro(); // Para o timer
+            stopPomodoro(); 
             
             if (!isPausa) {
-                // Sessão de foco acabou, inicia pausa
                 isPausa = true;
-                pomodoroTimer = null; // Reseta timer para a pausa começar
+                pomodoroTimer = null; 
                 showToast("Sessão de foco concluída! Hora da pausa.", "info");
-                startPomodoro(); // Inicia a pausa automaticamente
+                startPomodoro(); 
             } else {
-                // Pausa acabou, volta ao normal
                 isPausa = false;
                 showToast("Pausa concluída! Pronto para mais uma sessão?", "info");
-                resetPomodoro(); // Reseta para a próxima sessão de foco
+                resetPomodoro(); 
             }
         }
-    }, 1000); // 1 segundo
+    }, 1000); 
 }
 
 function stopPomodoro() {
     clearInterval(pomodoroInterval);
     isPomodoroRunning = false;
-    // O texto do botão é atualizado por quem chama (startPomodoro ou resetPomodoro)
 }
 
 function resetPomodoro() {
