@@ -1,5 +1,5 @@
 // ===================================
-// ARQUIVO main.js (com Rolagem para o Topo Corrigida, Pomodoro Fixo e Animações)
+// ARQUIVO main.js (Correção Final de Medição de Altura Estável)
 // ===================================
 
 // --- Variáveis Globais ---
@@ -16,7 +16,7 @@ let isPomodoroRunning = false;
 let isPausa = false;
 let activeYoutubePlayer = null; // Guarda o player de vídeo ativo
 
-// --- Referências ao DOM (declaradas aqui, atribuídas no DOMContentLoaded) ---
+// --- Referências ao DOM ---
 let themeToggle = null;
 let playlistUrlInput = null;
 let carregarBtn = null;
@@ -33,7 +33,8 @@ let pomodoroResetBtn = null;
 let statPercentual = null;
 let statConcluidos = null;
 let statEsforco = null;
-
+// --- Modo Foco (mantido apenas body para tema) ---
+let bodyElement = null; // Referência ao body
 
 // --- TENTA INICIALIZAR FIREBASE IMEDIATAMENTE (NÃO ALTERADO) ---
 console.log("Tentando inicializar Firebase (topo do main.js)...");
@@ -75,7 +76,7 @@ async function loadProgress(playlistId) {
     } catch (error) { console.error("Erro loadProgress:", error); showToast("Erro carregar progresso.", "warning"); } 
 }
 
-// --- saveProgress atualizado (Ideia 1) ---
+// --- saveProgress atualizado (Ideia 1) - CORRIGIDO 'dataParaSalvation' ---
 async function saveProgress(playlistId, videoId, isChecked, anotacao = null) { 
     if (!playlistId || !videoId || !firebaseInicializado) { console.warn("Pulando saveProgress."); return; } 
     const docRef = db.collection('progress').doc(playlistId); 
@@ -94,8 +95,8 @@ async function saveProgress(playlistId, videoId, isChecked, anotacao = null) {
                 dataConclusao: new Date().toISOString()
             };
         }
-        updateData[videoId] = dataParaSalvar;
-        videoProgress[videoId] = dataParaSalvar;
+        updateData[videoId] = dataParaSalvar; // CORREÇÃO AQUI
+        videoProgress[videoId] = dataParaSalvar; // CORREÇÃO AQUI
         
     } else { 
         updateData[videoId] = firebase.firestore.FieldValue.delete(); 
@@ -153,26 +154,26 @@ function showToast(message, type = 'info') {
     } catch(e){ console.error("Erro showToast:",e);}
 }
 
+// --- openDay FINAL CORRIGIDO (Medição Estável) ---
 function openDay(diaConteudo) { 
     try{ 
         if (!diaConteudo) return; 
-        // Remove a classe de animação de entrada se estiver presente
+        
         const diaElement = diaConteudo.closest('.dia');
         if(diaElement) diaElement.classList.remove('day-next-animation');
 
+        // 1. Lazy load dos players (inicialização)
         if (!diaConteudo.dataset.loaded) { 
             const placeholders = diaConteudo.querySelectorAll('.video-placeholder'); 
             placeholders.forEach(placeholder => { 
                 const videoId = placeholder.dataset.videoId; 
                 if (typeof YT !== 'undefined' && typeof YT.Player !== 'undefined') { 
-                    // Cria o player e armazena a referência para o player ativo
                     const player = new YT.Player(placeholder, { 
                         videoId: videoId, 
                         playerVars: { 'origin': window.location.origin }, 
                         events: { 
                             'onStateChange': onPlayerStateChange,
                             'onReady': (event) => {
-                                // Assume que o primeiro player pronto no dia aberto é o ativo
                                 activeYoutubePlayer = event.target;
                             }
                         } 
@@ -184,28 +185,43 @@ function openDay(diaConteudo) {
             }); 
             diaConteudo.dataset.loaded = 'true'; 
         } else {
-            // Se o dia já estava carregado, mas foi reaberto, tenta encontrar o player novamente
             const iframe = diaConteudo.querySelector('iframe');
             if (iframe && iframe.id) {
-                // Tenta obter a referência do player API
                 activeYoutubePlayer = YT.get(iframe.id); 
             }
         }
         
-        // Lógica de abertura do acordeão (maxHeight)
-        const currentTransition = diaConteudo.style.transition; 
+        // --- CÁLCULO ESTÁVEL DE ALTURA (Medição Dupla) ---
+        
+        // 1. Prepara a medição: Remove a transição e força a altura para medir o scrollHeight corretamente
         diaConteudo.style.transition = ''; 
-        diaConteudo.style.maxHeight = 'none'; 
-        const scrollHeight = diaConteudo.scrollHeight; 
-        diaConteudo.style.maxHeight = '0px'; 
-        diaConteudo.offsetHeight; 
-        diaConteudo.style.transition = currentTransition; 
-        diaConteudo.style.paddingTop = '20px'; 
-        diaConteudo.style.paddingBottom = '20px'; 
-        diaConteudo.style.maxHeight = scrollHeight + "px"; 
+        // Define max-height para um valor fixo alto para garantir que o conteúdo seja renderizado
+        diaConteudo.style.maxHeight = '3000px'; 
+        
+        // 2. Atraso pequeno (50ms) para que o browser renderize o iframe/conteúdo expandido
+        setTimeout(() => {
+            
+            // Calcula a altura real de todo o conteúdo (scrollHeight) + buffer
+            // O scrollHeight agora deve ser o valor mais preciso, pois o max-height temporário está alto
+            const finalHeight = diaConteudo.scrollHeight + 40; 
+
+            // 3. Aplica a transição de volta e define a altura final
+            diaConteudo.style.maxHeight = '0px'; 
+            diaConteudo.offsetHeight; // Força reflow (sem isso, a transição falha)
+            
+            diaConteudo.style.transition = 'max-height 0.4s ease-out, padding-top 0.4s ease-out, padding-bottom 0.4s ease-out'; 
+            
+            diaConteudo.style.paddingTop = '20px'; 
+            diaConteudo.style.paddingBottom = '20px'; 
+            
+            // Define a altura máxima para o valor medido. 
+            diaConteudo.style.maxHeight = `${finalHeight}px`; 
+            
+        }, 50); 
 
     } catch(e){ console.error("Erro openDay:",e);}
 }
+// --- FIM openDay MODIFICADO ---
 
 function closeDay(diaConteudo) { 
     try{ 
@@ -297,11 +313,32 @@ function smoothDayTransition(diaElementConcluido) {
 }
 // --- FIM NOVA FUNÇÃO ---
 
+// --- LÓGICA ANTIGA DO MODO FOCO REMOVIDA ---
+// Função mantida vazia para compatibilidade, mas a lógica foi removida do HTML
+function toggleFocoMode(buttonElement) {
+    console.log("Modo Foco Removido/Ignorado para Estabilidade do Layout.");
+}
+// --- FIM MODO FOCO ---
+
+// --- Função auxiliar de Debounce (para evitar sobrecarga de escrita no DB) ---
+const debounce = (func, delay) => {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            func.apply(null, args);
+        }, delay);
+    };
+};
+// --- FIM debounce ---
+
+
 // --- Lógica de Carregamento da Página ---
 document.addEventListener('DOMContentLoaded', () => {
      console.log("DOMContentLoaded disparado.");
      
      // --- Atribuição dos elementos do DOM ---
+     bodyElement = document.getElementById('page-body'); // Obtém a referência ao body
      themeToggle = document.getElementById('theme-toggle');
      playlistUrlInput = document.getElementById('playlistUrl');
      carregarBtn = document.getElementById('carregarPlaylist');
@@ -478,7 +515,6 @@ function calcularEsforco(title, durationString) {
             } 
         }
          if (isNaN(scoreFinal)) {
-             console.error(`   [calcularEsforco] scoreFinal é NaN após modificadores! scoreBase=${scoreBase}, modificador=${modificadorAplicado}`);
              scoreFinal = scoreBase;
          }
         const resultado = Math.max(PONTUACAO_MINIMA, Math.round(scoreFinal || 0)); 
@@ -649,6 +685,8 @@ async function carregarVideosDaPlaylist(playlistId) {
              
              esforcoNoDia += esforco;
              
+             // --- Botão Foco/Teatro (REMOVIDO) ---
+
              const videoHtml = `
               <div class="video-item" data-video-item-id="${videoId}"> 
                  <div class="video-title-wrapper">
@@ -679,7 +717,6 @@ async function carregarVideosDaPlaylist(playlistId) {
         }
 
     } catch (error) { 
-        console.error("ERRO DETALHADO em carregarVideosDaPlaylist:", error); 
         videosContainer.innerHTML = `<p style="color: red;">Erro ao carregar playlist. Verifique o console.</p>`; 
         if (error.message.includes("API Key") || error.message.includes("Forbidden") || error.message.includes("403")) showToast("Erro: Chave API YouTube inválida/restrita.", "warning"); 
         else if (error.message.includes("quota")) showToast("Cota API YouTube excedida.", "warning"); 
@@ -698,6 +735,7 @@ async function carregarVideosDaPlaylist(playlistId) {
         // Listener do Acordeão
         document.querySelectorAll('.dia-header').forEach(header => { 
             header.addEventListener('click', (e) => { 
+                // Se clicou no botão foco, ignora o acordeão
                 if (e.target.closest('a, button')) return; 
                 const diaConteudo = header.nextElementSibling;
                 if (diaConteudo) {
@@ -730,7 +768,6 @@ async function carregarVideosDaPlaylist(playlistId) {
                     textarea.style.transition = 'transform 0.1s, border-color 0.2s';
                     textarea.style.borderColor = 'red';
                     // Efeito shake rápido
-                    textarea.style.transform = 'translateX(-5px)';
                     setTimeout(() => { textarea.style.transform = 'translateX(5px)'; }, 100);
                     setTimeout(() => { textarea.style.transform = 'translateX(-5px)'; }, 200);
                     setTimeout(() => { textarea.style.transform = 'translateX(5px)'; }, 300);
@@ -782,9 +819,9 @@ async function carregarVideosDaPlaylist(playlistId) {
             }); 
         }); 
         
-        // Listener do Textarea
+        // Listener do Textarea (COM DEBOUNCE IMPLEMENTADO)
         document.querySelectorAll('.anotacao-area textarea').forEach(textarea => { 
-            textarea.addEventListener('input', async (e) => { 
+            const debouncedSave = debounce(async (e) => {
                 const videoId = e.target.dataset.videoId;
                 const videoItem = e.target.closest('.video-item');
                 if (!videoId || !videoItem) return;
@@ -794,8 +831,11 @@ async function carregarVideosDaPlaylist(playlistId) {
                 if (checkbox && checkbox.checked) {
                     const anotacao = e.target.value; 
                     await saveProgress(currentPlaylistId, videoId, true, anotacao);
+                    showToast("Anotação salva automaticamente.", "info"); // Feedback visual
                 }
-            }); 
+            }, 1000); // 1 segundo de debounce
+            
+            textarea.addEventListener('input', debouncedSave); 
         }); 
         
         console.log("Event listeners adicionados."); 
@@ -887,14 +927,12 @@ function processarFilaDeRevisao(videosInfo, progressoSalvo) {
                 <div class="review-item" data-video-id="${item.videoId}">
                     <h4>${item.title}</h4>
                     
-                    <!-- Área do Desafio (sempre visível) -->
                     <div class="review-desafio-area">
                         <label for="review-anotacao-${item.videoId}">O que você lembra sobre este vídeo?</label>
                         <textarea id="review-anotacao-${item.videoId}" rows="3" placeholder="Tente lembrar sem olhar..."></textarea>
                         <button class="review-btn-revelar" data-video-id="${item.videoId}">Comparar com Anotação</button>
                     </div>
 
-                    <!-- Área de Comparação (escondida) -->
                     <div class="review-revelar-area hidden">
                         <p><strong>Sua anotação original:</strong> "${item.anotacao}"</p>
                         <div class="review-actions">
@@ -976,7 +1014,7 @@ async function handleReviewAction(e) {
 }
 // --- FIM IDEIA 1 ---
 
-// --- FUNÇÃO AUXILIAR PARA ALARME (AGORA USANDO ELEMENTO <audio>) ---
+// --- FUNÇÃO AUXILIAR PARA ALARME ---
 function playAlarm() {
     try {
         if (typeof ALARME_URL !== 'undefined' && ALARME_URL) {
@@ -997,7 +1035,7 @@ function playAlarm() {
 // --- FIM FUNÇÃO AUXILIAR ---
 
 
-// --- IDEIA 2 (Funções do Modo Foco) ---
+// --- IDEIA 2 (Funções do Pomodoro) ---
 function startPomodoro() {
     if (isPomodoroRunning) {
         // Pausar

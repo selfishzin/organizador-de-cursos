@@ -10,9 +10,9 @@ const CHAVE_API = 'AIzaSyCDVZQLcB8HyxHnRAYYEJnCfK9zytL8wbs';
 // Se quiser o campo em branco, deixe as aspas vazias: ""
 const PLAYLIST_PADRAO_URL = 'https://www.youtube.com/playlist?list=PL62G310vn6nFIsOCC0H-C2infYgwm8SWW';
 
-// --- CONFIGURAÇÃO DO FIREBASE (REVERTIDA) ---
+// --- CONFIGURAÇÃO DO FIREBASE (CHAVE ORIGINAL REVERTIDA) ---
 const firebaseConfig = {
-  apiKey: "AIzaSyDJwY4TrxR3uOvimNCmJI775BpmKtpN3U8", // SUA CONFIG AQUI (MANTIDA ORIGINALMENTE PARA NÃO CAUSAR ERRO)
+  apiKey: "AIzaSyDJwY4TrxR3uOvimNCmJI775BpmKtpN3U8", 
   authDomain: "meu-app-estudos.firebaseapp.com",
   projectId: "meu-app-estudos",
   storageBucket: "meu-app-estudos.firebaseapp.com",
@@ -48,11 +48,8 @@ const CONFIG_POMODORO = {
     DURACAO_PAUSA_MIN: 5      // 5 minutos de pausa
 };
 
-// --- CONFIGURAÇÃO DO ALARME (NOVO) ---
+// --- CONFIGURAÇÃO DO ALARME ---
 const ALARME_URL = 'sons/alarme.mp3'; 
-// Altere 'alarme.mp3' para o nome do seu arquivo de som, se for diferente.
-// Certifique-se de que o arquivo esteja na mesma pasta do index.html e main.js.
-// ------------------------------------
 
 // LOG NO FINAL
 console.log("Arquivo config.js carregado com sucesso. firebaseConfig:", (typeof firebaseConfig !== 'undefined'));
