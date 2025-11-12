@@ -44,7 +44,7 @@ const CONFIG_APRENDIZADO = {
 
 // --- IDEIA 2 (Modo Foco) ---
 const CONFIG_POMODORO = {
-    DURACAO_SESSAO_MIN: 25, // 25 minutos de foco
+    DURACAO_SESSAO_MIN: 10, // 25 minutos de foco
     DURACAO_PAUSA_MIN: 5      // 5 minutos de pausa
 };
 
@@ -52,4 +52,5 @@ const CONFIG_POMODORO = {
 const ALARME_URL = 'sons/alarme.mp3'; 
 
 // LOG NO FINAL
+
 console.log("Arquivo config.js carregado com sucesso. firebaseConfig:", (typeof firebaseConfig !== 'undefined'));
